@@ -20,7 +20,6 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
         .split(' ')
         .collect();
     let argc = argv.len();
-    println!("buffer: {:?}, count: {:?}, argv{:?}", buffer, argc, argv);
     let mut iter = argv.iter();
 
     if argc < 1 { return Ok(None); }
