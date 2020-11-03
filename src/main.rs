@@ -4,24 +4,14 @@ use std::cell::RefCell;
 
 #[derive(Debug)]
 struct Node<T>(T, Edge<T>);
-type Edge<T> = Vec<NodePointerType<T>>;
-
-
-#[derive(Debug)]
-enum NodePointerType<T> {
-    NodePointer {
-        pointer: Rc<RefCell<Node<T>>>,
-    },
-    ReadOnlyNodePointer {
-        pointer: Rc<Node<T>>,
-    },
-}
+type NodePointer<T> = Rc<RefCell<Node<T>>>;
+type Edge<T> = Vec<NodePointer<T>>;
 
 
 trait Graph<T> {
     fn edge(&self) -> &Edge<T>;
+    fn value(&self) -> &T;
     fn connect(&mut self, node: FileNode);
-    fn banish(self);
 }
 
 
@@ -30,16 +20,14 @@ impl Graph<FileType> for FileNode {
         &self.1
     }
 
-    fn connect(&mut self, node: FileNode) {
-        self.1.push(
-            NodePointerType::NodePointer{
-                pointer: Rc::new(RefCell::new(node))
-            }
-        );
+    fn value(&self) -> &FileType {
+        &self.0
     }
 
-    fn banish(self) {
-
+    fn connect(&mut self, node: FileNode) {
+        self.1.push(
+            NodePointer::new(RefCell::new(node))
+        );
     }
 }
 
@@ -70,7 +58,6 @@ impl FileObject for FileType {
         match self {
             FileType::Directory{ name } => { name.to_string() },
             FileType::File{ name, data: _ } => { name.to_string() },
-            _ => { "\0".to_string() },
         }
     }
 }
@@ -104,45 +91,74 @@ impl FileNode {
 fn ls(directory: &FileNode) -> String {
     let nodes = directory.edge();
 
-    let mut str = match &nodes[0] {
-        NodePointerType::NodePointer{ pointer } => {
-            pointer.borrow()
-                   .0
-                   .name()
-                   .to_string()
-        },
-        NodePointerType::ReadOnlyNodePointer{ pointer } => {
-            pointer.0
-                   .name()
-                   .to_string()
-        },
-    };
+    let mut str = nodes[0].borrow()
+        .value()
+        .name()
+        .to_string();
 
     for index in 1..nodes.len() {
-        let s = match &nodes[index] {
-            NodePointerType::NodePointer{ pointer } => {
-                pointer.borrow()
-                       .0
-                       .name()
-                       .to_string()
-            },
-            NodePointerType::ReadOnlyNodePointer{ pointer } => {
-                pointer.0
-                       .name()
-                       .to_string()
-            },
-        };
-        str = str + "\t" + &s;
+        let s = &nodes[index].borrow()
+            .value()
+            .name()
+            .to_string();
+
+        str = str + "\t" + s;
     }
 
     str
 }
 
 
-fn mkdir(directory: &mut FileNode, create_directory_name: Name) {
+fn mkdir(directory: &mut FileNode, name: Name) {
     directory.connect(
-        FileNode::create_directory(create_directory_name, Edge::new())
+        FileNode::create_directory(name, Edge::new())
     );
+}
+
+
+fn touch(directory: &mut FileNode, name: Name, data: Data) {
+    directory.connect(
+        FileNode::create_file(name, data, Edge::new())
+    );
+}
+
+
+fn write(file: &mut FileNode, input: Data) {
+    let n = &mut file.0;
+
+    match n {
+        FileType::File{ name: _, data } => { *data = data.to_string() + &input },
+        _ => {}
+    }
+}
+
+
+fn read(file: &FileNode) -> Data {
+    let n = &file.value();
+
+    match n {
+        FileType::File{ name: _, data } => { data.to_string() },
+        _ => { "\0".to_string() }
+    }
+}
+
+
+fn find(directory: &FileNode, target: Name) -> Result<NodePointer<FileType>, ()> {
+    let edges = directory.edge();
+
+    for e in edges {
+        let s = e.borrow()
+            .value()
+            .name()
+            .to_string();
+
+
+        if s == target {
+            return Ok(NodePointer::clone(e));
+        }
+    }
+
+    Err(())
 }
 
 
@@ -153,6 +169,28 @@ fn main() {
 
     mkdir(current, "home".to_string());
     mkdir(current, "root".to_string());
-
+    touch(current, "file1".to_string(), "file1 test".to_string());
     println!("{}", ls(current));
+
+    if let Ok(pointer) = find(current, "file1".to_string()) {
+        {
+            let node = &pointer.borrow();
+            let file = node.value();
+            let name = file.name();
+            let data = read(node);
+            println!("{}", name);
+            println!("{}", data);
+        }
+
+        {
+            let node = &mut pointer.borrow_mut();
+            write(node, "\nadd writing".to_string());
+
+            let file = node.value();
+            let name = file.name();
+            let data = read(node);
+            println!("{}", name);
+            println!("{}", data);
+        }
+    }
 }
