@@ -19,13 +19,12 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
     let argv: Vec<&Arg> = buffer.trim()
         .split(' ')
         .collect();
-    let argc = argv.len();
     let mut iter = argv.iter();
 
-    if argc < 1 { return Ok(None); }
-
-    let command = *iter.next().unwrap();
-    if argc == 1 && command.is_empty() { return Ok(None); }
+    let command = if let Some(head) = iter.next() {
+        if head.is_empty() { return Ok(None); }
+        *head
+    } else { return Ok(None); };
 
     if command == ":?" {
         println!("to stop, press Ctrl + c or type exit");
