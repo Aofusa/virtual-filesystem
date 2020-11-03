@@ -1,68 +1,53 @@
-use crate::graph::{NodePointer, Edge, Graph};
+use crate::graph::{NodePointer, Graph};
 use crate::filesystem::{FileNode, FileType, FileObject, Name, Data};
 
 
 pub fn ls(directory: &FileNode) -> String {
     let nodes = directory.edge();
-    let mut iter = nodes.iter();
-
-    if let Some(head) = iter.next() {
-        let mut str = head.borrow()
-            .value()
-            .name()
-            .to_string();
-
-        iter.for_each(|x| {
-            let s = &x.borrow()
-                .value()
-                .name()
-                .to_string();
-    
-            str = str.to_string() + "\t" + s;
-        });
-    
-        return str;
-    }
-
-    "".to_string()
+    let iter = nodes.iter();
+    iter.map(|x| x.borrow().value().name().to_string()).collect::<Vec<String>>().join("\t")
 }
+
 
 
 pub fn mkdir(directory: &mut FileNode, name: Name) {
     directory.connect(
-        FileNode::create_directory(name, Edge::new())
+        FileNode::create_directory(name, vec![])
     );
 }
 
 
 pub fn touch(directory: &mut FileNode, name: Name, data: Data) {
     directory.connect(
-        FileNode::create_file(name, data, Edge::new())
+        FileNode::create_file(name, data, vec![])
     );
 }
 
 
-pub fn write(file: &mut FileNode, input: Data) {
+pub fn write(file: &mut FileNode, input: &str) -> Result<(), ()> {
     let n = &mut file.0;
 
     match n {
-        FileType::File{ name: _, data } => { *data = data.to_string() + &input },
-        _ => {}
+        FileType::File{ name: _, data } => {
+            *data = data.to_string() + &input;
+            Ok(())
+        },
+        _ => { Err(()) }
     }
 }
 
 
-pub fn read(file: &FileNode) -> Data {
+pub fn read(file: &FileNode) -> Result<&Data, ()> {
     let n = &file.value();
 
     match n {
-        FileType::File{ name: _, data } => { data.to_string() },
-        _ => { "\0".to_string() }
+        FileType::File{ name: _, data } => { Ok(data) },
+        _ => { Err(()) }
     }
 }
 
 
-pub fn find(directory: &FileNode, target: Name) -> Result<NodePointer<FileType>, ()> {
+pub fn find(directory: &FileNode, target: &str) -> Result<NodePointer<FileType>, ()> {
     let edges = directory.edge();
 
     for e in edges {
@@ -97,25 +82,25 @@ mod tests {
         touch(current, "file1".to_string(), "file1 test".to_string());
         assert_eq!(ls(current), "home\troot\tfile1");
 
-        if let Ok(pointer) = find(current, "file1".to_string()) {
+        if let Ok(pointer) = find(current, "file1") {
             {
                 let node = &pointer.borrow();
                 let file = node.value();
                 let name = file.name();
                 let data = read(node);
                 assert_eq!(name, "file1");
-                assert_eq!(data, "file1 test");
+                assert_eq!(data, Ok(&"file1 test".to_string()));
             }
 
             {
                 let node = &mut pointer.borrow_mut();
-                write(node, "\nadd writing".to_string());
+                assert_eq!(write(node, "\nadd writing"), Ok(()));
 
                 let file = node.value();
                 let name = file.name();
                 let data = read(node);
                 assert_eq!(name, "file1");
-                assert_eq!(data, "file1 test\nadd writing");
+                assert_eq!(data, Ok(&"file1 test\nadd writing".to_string()));
             }
         }
     }

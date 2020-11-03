@@ -22,15 +22,15 @@ pub enum FileType {
 
 
 pub trait FileObject {
-    fn name(&self) -> Name;
+    fn name(&self) -> &Name;
 }
 
 
 impl FileObject for FileType {
-    fn name(&self) -> Name {
+    fn name(&self) -> &Name {
         match self {
-            FileType::Directory{ name } => { name.to_string() },
-            FileType::File{ name, data: _ } => { name.to_string() },
+            FileType::Directory{ name } => { name },
+            FileType::File{ name, data: _ } => { name },
         }
     }
 }

@@ -47,7 +47,7 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
     } else if command == "cd" {
         let change = if let Some(arg) = iter.next() {
             let current = &shell.current.borrow();
-            if let Ok(pointer) = find(current, arg.to_string()) {
+            if let Ok(pointer) = find(current, arg) {
                 Ok(pointer.clone())
             } else {
                 println!("not found.");
@@ -66,12 +66,12 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
     } else if command == "find" {
         let current = &shell.current.borrow();
         if let Some(arg) = iter.next() {
-            if let Ok(pointer) = find(current, arg.to_string()) {
+            if let Ok(pointer) = find(current, arg) {
                 let node = &pointer.borrow();
                 let file = node.value();
                 let name = file.name();
                 println!("{}", name);
-                Ok(Some(name))
+                Ok(Some(name.to_string()))
             } else {
                 println!("not found.");
                 Err(())
@@ -101,11 +101,15 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
     } else if command == "read" {
         let current = &shell.current.borrow();
         if let Some(arg) = iter.next() {
-            if let Ok(pointer) = find(current, arg.to_string()) {
+            if let Ok(pointer) = find(current, arg) {
                 let node = &pointer.borrow();
-                let data = read(node);
-                println!("{}", data);
-                Ok(Some(data))
+                if let Ok(data) = read(node) {
+                    println!("{}", data);
+                    Ok(Some(data.to_string()))
+                } else {
+                    println!("not a file.");
+                    Err(())
+                }
             } else {
                 println!("not found.");
                 Err(())
@@ -128,10 +132,15 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
                 return Err(());
             }
             let data = &buffer[index..];
-            if let Ok(pointer) = find(current, arg.to_string()) {
+            if let Ok(pointer) = find(current, arg) {
                 let node = &mut pointer.borrow_mut();
-                write(node, data.to_string());
-                Ok(None)
+                match write(node, data) {
+                    Ok(()) => { Ok(None) },
+                    Err(()) => {
+                        println!("not a file.");
+                        Err(())
+                    },
+                }
             } else {
                 println!("not found.");
                 Err(())
