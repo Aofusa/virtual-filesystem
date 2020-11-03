@@ -1,6 +1,8 @@
 Virtual Filesystem
 =====
 
+[![CircleCI](https://circleci.com/gh/Aofusa/virtual-filesystem.svg?style=svg)](https://circleci.com/gh/Aofusa/virtual-filesystem)
+
 
 Rust で作るインメモリな擬似ファイルシステムみたいなもの  
 
