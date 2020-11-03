@@ -64,6 +64,7 @@ impl FileObject for FileType {
 
 
 type FileNode = Node<FileType>;
+type FileNodePointer = NodePointer<FileType>;
 
 
 impl FileNode {
@@ -85,27 +86,36 @@ impl FileNode {
             edge,
         )
     }
+
+    fn to_pointer(self) -> FileNodePointer {
+        FileNodePointer::new(RefCell::new(self))
+    }
 }
 
 
 fn ls(directory: &FileNode) -> String {
     let nodes = directory.edge();
+    let mut iter = nodes.iter();
 
-    let mut str = nodes[0].borrow()
-        .value()
-        .name()
-        .to_string();
-
-    for index in 1..nodes.len() {
-        let s = &nodes[index].borrow()
+    if let Some(head) = iter.next() {
+        let mut str = head.borrow()
             .value()
             .name()
             .to_string();
 
-        str = str + "\t" + s;
+        iter.for_each(|x| {
+            let s = &x.borrow()
+                .value()
+                .name()
+                .to_string();
+    
+            str = str.to_string() + "\t" + s;
+        });
+    
+        return str;
     }
 
-    str
+    "\0".to_string()
 }
 
 
@@ -162,6 +172,68 @@ fn find(directory: &FileNode, target: Name) -> Result<NodePointer<FileType>, ()>
 }
 
 
+#[derive(Debug)]
+struct Shell {
+    root: FileNodePointer,
+    current: FileNodePointer,
+}
+
+
+type Buffer = String;
+type Arg = str;
+
+
+fn run(shell: &mut Shell, buffer: &Arg) {
+    let argv: Vec<&Arg> = buffer.split(' ').collect();
+    let argc = argv.len();
+    let mut iter = argv.iter();
+
+    if argc < 1 { return; }
+
+    let command = *iter.next().unwrap();
+
+    if command == ":?" {
+        println!("to stop, press Ctrl + c");
+        println!("Command list");
+        println!("  ls");
+        println!("  cd [directory]");
+        println!("  find [path]");
+        println!("  mkdir [directory]");
+        println!("  touch [file]");
+        println!("  read [file]");
+        println!("  write [file]");
+    } else if command == "ls" {
+        let current = &shell.current.borrow();
+        ls(current);
+    }
+}
+
+
+fn interactive() {
+    println!("start interactive shell. Enjoy! :/");
+    println!("to stop, press Ctrl + c");
+    println!("if you need help, type :?");
+
+    let root = FileNode::create_directory("".to_string(), Edge::new()).to_pointer();
+    let current = root.clone();
+    let shell = &mut Shell{
+        root: root,
+        current: current,
+    };
+    
+    loop {
+        println!("$> ");
+        let mut buffer = Buffer::new();
+        std::io::stdin().read_line(&mut buffer).unwrap();
+        let buffer = buffer.trim();
+
+        if buffer == "exit" { break; }
+
+        run(shell, buffer);
+    }
+}
+
+
 fn main() {
     let mut root = FileNode::create_directory("".to_string(), Edge::new());
 
@@ -193,4 +265,6 @@ fn main() {
             println!("{}", data);
         }
     }
+
+    interactive();
 }
