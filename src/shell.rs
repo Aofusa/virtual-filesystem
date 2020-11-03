@@ -5,6 +5,8 @@ use crate::command::{ls, mkdir, touch, write, read, find};
 
 type Buffer = String;
 type Arg = str;
+type CommandResult = Result<Option<String>, ()>;
+
 
 #[derive(Debug)]
 struct Shell {
@@ -13,14 +15,18 @@ struct Shell {
 }
 
 
-fn run(shell: &mut Shell, buffer: &Arg) {
-    let argv: Vec<&Arg> = buffer.split(' ').collect();
+fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
+    let argv: Vec<&Arg> = buffer.trim()
+        .split(' ')
+        .collect();
     let argc = argv.len();
+    println!("buffer: {:?}, count: {:?}, argv{:?}", buffer, argc, argv);
     let mut iter = argv.iter();
 
-    if argc < 1 { return; }
+    if argc < 1 { return Ok(None); }
 
     let command = *iter.next().unwrap();
+    if argc == 1 && command.is_empty() { return Ok(None); }
 
     if command == ":?" {
         println!("to stop, press Ctrl + c or type exit");
@@ -33,72 +39,111 @@ fn run(shell: &mut Shell, buffer: &Arg) {
         println!("  read [file]");
         println!("  write [file] [string]");
         println!("  exit");
+        Ok(None)
     } else if command == "ls" {
         let current = &shell.current.borrow();
-        println!("{}", ls(current));
+        let result = ls(current);
+        println!("{}", result);
+        Ok(Some(result))
     } else if command == "cd" {
-        let change: Result<FileNodePointer, ()>;
-        {
+        let change = if let Some(arg) = iter.next() {
             let current = &shell.current.borrow();
-            let arg = *iter.next().unwrap();
             if let Ok(pointer) = find(current, arg.to_string()) {
-                change = Ok(pointer.clone());
+                Ok(pointer.clone())
             } else {
-                change = Err(());
                 println!("not found.");
+                Err(())
             }
-        }
+        } else {
+            println!("illegal argument.");
+            Err(())
+        };
         if let Ok(change) = change {
             shell.current = change;
+            Ok(None)
+        } else {
+            Err(())
         }
     } else if command == "find" {
         let current = &shell.current.borrow();
-        let arg = *iter.next().unwrap();
-        if let Ok(pointer) = find(current, arg.to_string()) {
-            let node = &pointer.borrow();
-            let file = node.value();
-            let name = file.name();
-            println!("{}", name);
+        if let Some(arg) = iter.next() {
+            if let Ok(pointer) = find(current, arg.to_string()) {
+                let node = &pointer.borrow();
+                let file = node.value();
+                let name = file.name();
+                println!("{}", name);
+                Ok(Some(name))
+            } else {
+                println!("not found.");
+                Err(())
+            }
         } else {
-            println!("not found.");
+            println!("illegal argument.");
+            Err(())
         }
     } else if command == "mkdir" {
         let current = &mut shell.current.borrow_mut();
-        let arg = *iter.next().unwrap();
-        mkdir(current, arg.to_string());
+        if let Some(arg) = iter.next() {
+            mkdir(current, arg.to_string());
+            Ok(None)
+        } else {
+            println!("illegal argument.");
+            Err(())
+        }
     } else if command == "touch" {
         let current = &mut shell.current.borrow_mut();
-        let arg = *iter.next().unwrap();
-        touch(current, arg.to_string(), "".to_string());
+        if let Some(arg) = iter.next() {
+            touch(current, arg.to_string(), "".to_string());
+            Ok(None)
+        } else {
+            println!("illegal argument.");
+            Err(())
+        }
     } else if command == "read" {
         let current = &shell.current.borrow();
-        let arg = *iter.next().unwrap();
-        if let Ok(pointer) = find(current, arg.to_string()) {
-            let node = &pointer.borrow();
-            let data = read(node);
-            println!("{}", data);
+        if let Some(arg) = iter.next() {
+            if let Ok(pointer) = find(current, arg.to_string()) {
+                let node = &pointer.borrow();
+                let data = read(node);
+                println!("{}", data);
+                Ok(Some(data))
+            } else {
+                println!("not found.");
+                Err(())
+            }
         } else {
-            println!("not found.");
+            println!("illegal argument.");
+            Err(())
         }
     } else if command == "write" {
         let current = &mut shell.current.borrow_mut();
-        let arg = *iter.next().unwrap();
-        let mut index =
-            buffer.rfind(arg).unwrap() +
-            arg.len();
-        for i in buffer[index..].chars() {
-            if i.is_whitespace() { index += 1; }
-            else { break; }
-        }
-        let data = &buffer[index..];
-        if let Ok(pointer) = find(current, arg.to_string()) {
-            let node = &mut pointer.borrow_mut();
-            write(node, data.to_string());
+        if let Some(arg) = iter.next() {
+            let mut index =
+                buffer.rfind(arg).unwrap() + arg.len();
+            for i in buffer[index..].chars() {
+                if i.is_whitespace() { index += 1; }
+                else { break; }
+            }
+            if index >= buffer.len() {
+                println!("illegal argument.");
+                return Err(());
+            }
+            let data = &buffer[index..];
+            if let Ok(pointer) = find(current, arg.to_string()) {
+                let node = &mut pointer.borrow_mut();
+                write(node, data.to_string());
+                Ok(None)
+            } else {
+                println!("not found.");
+                Err(())
+            }
         } else {
-            println!("not found.");
+            println!("illegal argument.");
+            Err(())
         }
     } else {
         println!("{} command not found.", command);
+        Err(())
     }
 }
 
@@ -123,7 +168,270 @@ pub fn interactive() {
 
         if buffer == "exit" { break; }
 
-        run(shell, buffer);
+        let _ = run(shell, buffer);
+    }
+}
+
+
+#[cfg(test)]
+mod test {
+    use crate::filesystem::FileNode;
+    use crate::shell::{Shell, run};
+
+    #[test]
+    fn test_enter() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = "";
+        assert_eq!(run(shell, buffer), Ok(None));
+    }
+
+    #[test]
+    fn test_exit() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = "exit";
+        assert_eq!(run(shell, buffer), Err(()));
+    }
+
+    #[test]
+    fn test_help() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = ":?";
+        assert_eq!(run(shell, buffer), Ok(None));
+    }
+
+    #[test]
+    fn test_ls() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = "ls";
+        assert_eq!(run(shell, buffer), Ok(Some("".to_string())));
+
+        let buffer = "ls a";
+        assert_eq!(run(shell, buffer), Ok(Some("".to_string())));
+
+        let buffer = "ls b c";
+        assert_eq!(run(shell, buffer), Ok(Some("".to_string())));
+
+        let buffer = "mkdir a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "ls";
+        assert_eq!(run(shell, buffer), Ok(Some("a".to_string())));
+
+        let buffer = "ls a";
+        assert_eq!(run(shell, buffer), Ok(Some("a".to_string())));
+
+        let buffer = "ls b c";
+        assert_eq!(run(shell, buffer), Ok(Some("a".to_string())));
+    }
+
+    #[test]
+    fn test_cd() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = "cd";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "cd a";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "cd b c";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "mkdir a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "cd a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "mkdir b";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "cd b c";
+        assert_eq!(run(shell, buffer), Ok(None));
+    }
+
+    #[test]
+    fn test_find() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = "find";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "find a";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "find b c";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "mkdir a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "find a";
+        assert_eq!(run(shell, buffer), Ok(Some("a".to_string())));
+
+        let buffer = "mkdir b";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "find b c";
+        assert_eq!(run(shell, buffer), Ok(Some("b".to_string())));
+    }
+
+    #[test]
+    fn test_mkdir() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = "mkdir";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "mkdir a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "mkdir b c";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "mkdir a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "ls";
+        assert_eq!(run(shell, buffer), Ok(Some("a\tb\ta".to_string())));
+    }
+
+    #[test]
+    fn test_touch() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = "touch";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "touch a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "touch b c";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "touch a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "ls";
+        assert_eq!(run(shell, buffer), Ok(Some("a\tb\ta".to_string())));
+    }
+
+    #[test]
+    fn test_read() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = "read";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "read a";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "read a b";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "touch a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "read a";
+        assert_eq!(run(shell, buffer), Ok(Some("".to_string())));
+
+        let buffer = "write a 123";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "read a";
+        assert_eq!(run(shell, buffer), Ok(Some("123".to_string())));
+
+        let buffer = "read a b";
+        assert_eq!(run(shell, buffer), Ok(Some("123".to_string())));
+    }
+
+    #[test]
+    fn test_write() {
+        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let current = root.clone();
+        let shell = &mut Shell{
+            root: root,
+            current: current,
+        };
+
+        let buffer = "write";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "write a";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "write a 123";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "touch a";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "read a";
+        assert_eq!(run(shell, buffer), Ok(Some("".to_string())));
+
+        let buffer = "write a";
+        assert_eq!(run(shell, buffer), Err(()));
+
+        let buffer = "write a 123";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "read a";
+        assert_eq!(run(shell, buffer), Ok(Some("123".to_string())));
+
+        let buffer = "write a 123 456 xyz";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "read a";
+        assert_eq!(run(shell, buffer), Ok(Some("123123 456 xyz".to_string())));
     }
 }
 

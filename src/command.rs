@@ -24,7 +24,7 @@ pub fn ls(directory: &FileNode) -> String {
         return str;
     }
 
-    "\0".to_string()
+    "".to_string()
 }
 
 
