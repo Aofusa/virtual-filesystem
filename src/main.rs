@@ -1,301 +1,10 @@
-use std::rc::Rc;
-use std::cell::RefCell;
+mod graph;
+mod filesystem;
+mod command;
+mod shell;
 
 
-#[derive(Debug)]
-struct Node<T>(T, Edge<T>);
-type NodePointer<T> = Rc<RefCell<Node<T>>>;
-type Edge<T> = Vec<NodePointer<T>>;
-
-
-trait Graph<T> {
-    fn edge(&self) -> &Edge<T>;
-    fn value(&self) -> &T;
-    fn connect(&mut self, node: FileNode);
-}
-
-
-impl Graph<FileType> for FileNode {
-    fn edge(&self) -> &Edge<FileType> {
-        &self.1
-    }
-
-    fn value(&self) -> &FileType {
-        &self.0
-    }
-
-    fn connect(&mut self, node: FileNode) {
-        self.1.push(
-            NodePointer::new(RefCell::new(node))
-        );
-    }
-}
-
-
-type Name = String;
-type Data = String;
-
-
-#[derive(Debug)]
-enum FileType {
-    Directory {
-        name: Name,
-    },
-    File {
-        name: Name,
-        data: Data,
-    }
-}
-
-
-trait FileObject {
-    fn name(&self) -> Name;
-}
-
-
-impl FileObject for FileType {
-    fn name(&self) -> Name {
-        match self {
-            FileType::Directory{ name } => { name.to_string() },
-            FileType::File{ name, data: _ } => { name.to_string() },
-        }
-    }
-}
-
-
-type FileNode = Node<FileType>;
-type FileNodePointer = NodePointer<FileType>;
-
-
-impl FileNode {
-    fn create_directory(name: Name, edge: Edge<FileType>) -> FileNode {
-        Node(
-            FileType::Directory {
-                name: name,
-            },
-            edge,
-        )
-    }
-
-    fn create_file(name: Name, data: Data, edge: Edge<FileType>) -> FileNode {
-        Node(
-            FileType::File {
-                name: name,
-                data: data,
-            },
-            edge,
-        )
-    }
-
-    fn to_pointer(self) -> FileNodePointer {
-        FileNodePointer::new(RefCell::new(self))
-    }
-}
-
-
-fn ls(directory: &FileNode) -> String {
-    let nodes = directory.edge();
-    let mut iter = nodes.iter();
-
-    if let Some(head) = iter.next() {
-        let mut str = head.borrow()
-            .value()
-            .name()
-            .to_string();
-
-        iter.for_each(|x| {
-            let s = &x.borrow()
-                .value()
-                .name()
-                .to_string();
-    
-            str = str.to_string() + "\t" + s;
-        });
-    
-        return str;
-    }
-
-    "\0".to_string()
-}
-
-
-fn mkdir(directory: &mut FileNode, name: Name) {
-    directory.connect(
-        FileNode::create_directory(name, Edge::new())
-    );
-}
-
-
-fn touch(directory: &mut FileNode, name: Name, data: Data) {
-    directory.connect(
-        FileNode::create_file(name, data, Edge::new())
-    );
-}
-
-
-fn write(file: &mut FileNode, input: Data) {
-    let n = &mut file.0;
-
-    match n {
-        FileType::File{ name: _, data } => { *data = data.to_string() + &input },
-        _ => {}
-    }
-}
-
-
-fn read(file: &FileNode) -> Data {
-    let n = &file.value();
-
-    match n {
-        FileType::File{ name: _, data } => { data.to_string() },
-        _ => { "\0".to_string() }
-    }
-}
-
-
-fn find(directory: &FileNode, target: Name) -> Result<NodePointer<FileType>, ()> {
-    let edges = directory.edge();
-
-    for e in edges {
-        let s = e.borrow()
-            .value()
-            .name()
-            .to_string();
-
-
-        if s == target {
-            return Ok(NodePointer::clone(e));
-        }
-    }
-
-    Err(())
-}
-
-
-#[derive(Debug)]
-struct Shell {
-    root: FileNodePointer,
-    current: FileNodePointer,
-}
-
-
-type Buffer = String;
-type Arg = str;
-
-
-fn run(shell: &mut Shell, buffer: &Arg) {
-    let argv: Vec<&Arg> = buffer.split(' ').collect();
-    let argc = argv.len();
-    let mut iter = argv.iter();
-
-    if argc < 1 { return; }
-
-    let command = *iter.next().unwrap();
-
-    if command == ":?" {
-        println!("to stop, press Ctrl + c or type exit");
-        println!("Command list");
-        println!("  ls");
-        println!("  cd [directory]");
-        println!("  find [path]");
-        println!("  mkdir [directory]");
-        println!("  touch [file]");
-        println!("  read [file]");
-        println!("  write [file] [string]");
-        println!("  exit");
-    } else if command == "ls" {
-        let current = &shell.current.borrow();
-        println!("{}", ls(current));
-    } else if command == "cd" {
-        let change: Result<FileNodePointer, ()>;
-        {
-            let current = &shell.current.borrow();
-            let arg = *iter.next().unwrap();
-            if let Ok(pointer) = find(current, arg.to_string()) {
-                change = Ok(pointer.clone());
-            } else {
-                change = Err(());
-                println!("not found.");
-            }
-        }
-        if let Ok(change) = change {
-            shell.current = change;
-        }
-    } else if command == "find" {
-        let current = &shell.current.borrow();
-        let arg = *iter.next().unwrap();
-        if let Ok(pointer) = find(current, arg.to_string()) {
-            let node = &pointer.borrow();
-            let file = node.value();
-            let name = file.name();
-            println!("{}", name);
-        } else {
-            println!("not found.");
-        }
-    } else if command == "mkdir" {
-        let current = &mut shell.current.borrow_mut();
-        let arg = *iter.next().unwrap();
-        mkdir(current, arg.to_string());
-    } else if command == "touch" {
-        let current = &mut shell.current.borrow_mut();
-        let arg = *iter.next().unwrap();
-        touch(current, arg.to_string(), "".to_string());
-    } else if command == "read" {
-        let current = &shell.current.borrow();
-        let arg = *iter.next().unwrap();
-        if let Ok(pointer) = find(current, arg.to_string()) {
-            let node = &pointer.borrow();
-            let data = read(node);
-            println!("{}", data);
-        } else {
-            println!("not found.");
-        }
-    } else if command == "write" {
-        let current = &mut shell.current.borrow_mut();
-        let arg = *iter.next().unwrap();
-        let mut index =
-            buffer.rfind(arg).unwrap() +
-            arg.len();
-        for i in buffer[index..].chars() {
-            if i.is_whitespace() { index += 1; }
-            else { break; }
-        }
-        let data = &buffer[index..];
-        if let Ok(pointer) = find(current, arg.to_string()) {
-            let node = &mut pointer.borrow_mut();
-            write(node, data.to_string());
-        } else {
-            println!("not found.");
-        }
-    } else {
-        println!("{} command not found.", command);
-    }
-}
-
-
-fn interactive() {
-    println!("start interactive shell. Enjoy! :/");
-    println!("to stop, press Ctrl + c or type exit");
-    println!("if you need help, type :?");
-
-    let root = FileNode::create_directory("".to_string(), Edge::new()).to_pointer();
-    let current = root.clone();
-    let shell = &mut Shell{
-        root: root,
-        current: current,
-    };
-    
-    loop {
-        println!("$> ");
-        let mut buffer = Buffer::new();
-        std::io::stdin().read_line(&mut buffer).unwrap();
-        let buffer = buffer.trim();
-
-        if buffer == "exit" { break; }
-
-        run(shell, buffer);
-    }
-}
+use shell::interactive;
 
 
 fn main() {
@@ -303,36 +12,42 @@ fn main() {
 }
 
 
-#[test]
-fn test_run() {
-    let mut root = FileNode::create_directory("".to_string(), Edge::new());
-    let current = &mut root;
+#[cfg(test)]
+mod tests {
+    use crate::graph::{Edge, Graph};
+    use crate::filesystem::{FileNode, FileObject};
+    use crate::command::{ls, mkdir, touch, write, read, find};
 
-    mkdir(current, "home".to_string());
-    mkdir(current, "root".to_string());
-    touch(current, "file1".to_string(), "file1 test".to_string());
-    assert_eq!(ls(current), "home\troot\tfile1");
+    #[test]
+    fn test_run() {
+        let mut root = FileNode::create_directory("".to_string(), Edge::new());
+        let current = &mut root;
 
-    if let Ok(pointer) = find(current, "file1".to_string()) {
-        {
-            let node = &pointer.borrow();
-            let file = node.value();
-            let name = file.name();
-            let data = read(node);
-            assert_eq!(name, "file1");
-            assert_eq!(data, "file1 test");
-        }
+        mkdir(current, "home".to_string());
+        mkdir(current, "root".to_string());
+        touch(current, "file1".to_string(), "file1 test".to_string());
+        assert_eq!(ls(current), "home\troot\tfile1");
 
-        {
-            let node = &mut pointer.borrow_mut();
-            write(node, "\nadd writing".to_string());
+        if let Ok(pointer) = find(current, "file1".to_string()) {
+            {
+                let node = &pointer.borrow();
+                let file = node.value();
+                let name = file.name();
+                let data = read(node);
+                assert_eq!(name, "file1");
+                assert_eq!(data, "file1 test");
+            }
 
-            let file = node.value();
-            let name = file.name();
-            let data = read(node);
-            assert_eq!(name, "file1");
-            assert_eq!(data, "file1 test\nadd writing");
+            {
+                let node = &mut pointer.borrow_mut();
+                write(node, "\nadd writing".to_string());
+
+                let file = node.value();
+                let name = file.name();
+                let data = read(node);
+                assert_eq!(name, "file1");
+                assert_eq!(data, "file1 test\nadd writing");
+            }
         }
     }
-
 }
