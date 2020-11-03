@@ -9,7 +9,7 @@ pub type FileNode = Node<FileType>;
 pub type FileNodePointer = NodePointer<FileType>;
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum FileType {
     Directory {
         name: Name,
@@ -74,6 +74,105 @@ impl Graph<FileType> for FileNode {
     fn connect(&mut self, node: FileNode) {
         self.1.push(
             NodePointer::new(RefCell::new(node))
+        );
+    }
+}
+
+
+#[cfg(test)]
+mod tests_file_object {
+    use crate::filesystem::{FileType, FileObject};
+
+    #[test]
+    fn test_name() {
+        let directory = FileType::Directory{ name: "directory".to_string() };
+        assert_eq!(directory.name(), "directory");
+
+        let file = FileType::File{ name: "file".to_string(), data: "data".to_string() };
+        assert_eq!(file.name(), "file");
+    }
+}
+
+
+#[cfg(test)]
+mod tests_file_node {
+    use std::rc::Rc;
+    use std::cell::RefCell;
+    use crate::graph::{Node, Edge};
+    use crate::filesystem::{FileNode, FileType};
+
+    #[test]
+    fn test_create() {
+        let directory = FileNode::create_directory("directory".to_string(), Edge::new());
+        assert_eq!(directory, Node(
+            FileType::Directory{ name: "directory".to_string() },
+            Edge::new(),
+        ));
+
+        let file = FileNode::create_file("file".to_string(), "data".to_string(), Edge::new());
+        assert_eq!(file,
+            Node(
+                FileType::File{ name: "file".to_string(), data: "data".to_string() },
+                Edge::new(),
+            )
+        );
+
+        let pointer_directory = directory.to_pointer();
+        assert_eq!(pointer_directory,
+            Rc::new(
+                RefCell::new(
+                    Node(
+                        FileType::Directory{ name: "directory".to_string() },
+                        Edge::new(),
+                    )
+                )
+            )
+        );
+
+        let pointer_file = file.to_pointer();
+        assert_eq!(pointer_file,
+            Rc::new(
+                RefCell::new(
+                    Node(
+                        FileType::File{ name: "file".to_string(), data: "data".to_string() },
+                        Edge::new(),
+                    )
+                )
+            )
+        );
+    }
+}
+
+
+#[cfg(test)]
+mod tests_graph {
+    use crate::graph::{Node, Edge, Graph};
+    use crate::filesystem::{FileNode, FileType};
+
+    #[test]
+    fn test_edge() {
+        let node1 = Node(
+            FileType::Directory{ name: "node1".to_string() },
+            Edge::new(),
+        );
+        assert_eq!(node1.edge(), &Edge::new());
+
+        let node2 = Node(
+            FileType::Directory{ name: "node2".to_string() },
+            vec![],
+        );
+        assert_eq!(node2.edge(), &vec![]);
+
+        let node3 = Node(
+            FileType::Directory{ name: "node3".to_string() },
+            vec![
+                FileNode::create_directory("sub node".to_string(), vec![]).to_pointer()
+            ],
+        );
+        assert_eq!(node3.edge(),
+            &vec![
+                FileNode::create_directory("sub node".to_string(), vec![]).to_pointer()
+            ]
         );
     }
 }
