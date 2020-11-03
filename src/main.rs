@@ -235,14 +235,19 @@ fn interactive() {
 
 
 fn main() {
-    let mut root = FileNode::create_directory("".to_string(), Edge::new());
+    interactive();
+}
 
+
+#[test]
+fn test_run() {
+    let mut root = FileNode::create_directory("".to_string(), Edge::new());
     let current = &mut root;
 
     mkdir(current, "home".to_string());
     mkdir(current, "root".to_string());
     touch(current, "file1".to_string(), "file1 test".to_string());
-    println!("{}", ls(current));
+    assert_eq!(ls(current), "home\troot\tfile1");
 
     if let Ok(pointer) = find(current, "file1".to_string()) {
         {
@@ -250,8 +255,8 @@ fn main() {
             let file = node.value();
             let name = file.name();
             let data = read(node);
-            println!("{}", name);
-            println!("{}", data);
+            assert_eq!(name, "file1");
+            assert_eq!(data, "file1 test");
         }
 
         {
@@ -261,10 +266,9 @@ fn main() {
             let file = node.value();
             let name = file.name();
             let data = read(node);
-            println!("{}", name);
-            println!("{}", data);
+            assert_eq!(name, "file1");
+            assert_eq!(data, "file1 test\nadd writing");
         }
     }
 
-    interactive();
 }
