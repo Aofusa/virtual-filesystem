@@ -5,7 +5,16 @@ use crate::command::{ls, mkdir, touch, write, read, find};
 
 type Buffer = String;
 type Arg = str;
-type CommandResult = Result<Option<String>, ()>;
+type CommandResult = Result<Option<String>, CommandError>;
+
+
+#[derive(Debug, PartialEq)]
+enum CommandError {
+    NotFound,
+    IllegalArgument,
+    NotFile,
+    CommandNotFound(String),
+}
 
 
 #[derive(Debug)]
@@ -50,17 +59,17 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
                 Ok(pointer.clone())
             } else {
                 println!("not found.");
-                Err(())
+                Err(CommandError::NotFound)
             }
         } else {
             println!("illegal argument.");
-            Err(())
+            Err(CommandError::IllegalArgument)
         };
         if let Ok(change) = change {
             shell.current = change;
             Ok(None)
         } else {
-            Err(())
+            Err(change.unwrap_err())
         }
     } else if command == "find" {
         let current = &shell.current.borrow();
@@ -73,11 +82,11 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
                 Ok(Some(name.to_string()))
             } else {
                 println!("not found.");
-                Err(())
+                Err(CommandError::NotFound)
             }
         } else {
             println!("illegal argument.");
-            Err(())
+            Err(CommandError::IllegalArgument)
         }
     } else if command == "mkdir" {
         let current = &mut shell.current.borrow_mut();
@@ -86,7 +95,7 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
             Ok(None)
         } else {
             println!("illegal argument.");
-            Err(())
+            Err(CommandError::IllegalArgument)
         }
     } else if command == "touch" {
         let current = &mut shell.current.borrow_mut();
@@ -95,7 +104,7 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
             Ok(None)
         } else {
             println!("illegal argument.");
-            Err(())
+            Err(CommandError::IllegalArgument)
         }
     } else if command == "read" {
         let current = &shell.current.borrow();
@@ -107,15 +116,15 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
                     Ok(Some(data.to_string()))
                 } else {
                     println!("not a file.");
-                    Err(())
+                    Err(CommandError::NotFile)
                 }
             } else {
                 println!("not found.");
-                Err(())
+                Err(CommandError::NotFound)
             }
         } else {
             println!("illegal argument.");
-            Err(())
+            Err(CommandError::IllegalArgument)
         }
     } else if command == "write" {
         let current = &mut shell.current.borrow_mut();
@@ -128,7 +137,7 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
             }
             if index >= buffer.len() {
                 println!("illegal argument.");
-                return Err(());
+                return Err(CommandError::IllegalArgument);
             }
             let data = &buffer[index..];
             if let Ok(pointer) = find(current, arg) {
@@ -137,20 +146,20 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
                     Ok(()) => { Ok(None) },
                     Err(()) => {
                         println!("not a file.");
-                        Err(())
+                        Err(CommandError::NotFile)
                     },
                 }
             } else {
                 println!("not found.");
-                Err(())
+                Err(CommandError::NotFound)
             }
         } else {
             println!("illegal argument.");
-            Err(())
+            Err(CommandError::IllegalArgument)
         }
     } else {
         println!("{} command not found.", command);
-        Err(())
+        Err(CommandError::CommandNotFound(command.to_string()))
     }
 }
 
@@ -183,7 +192,7 @@ pub fn interactive() {
 #[cfg(test)]
 mod test {
     use crate::filesystem::FileNode;
-    use crate::shell::{Shell, run};
+    use crate::shell::{CommandError, Shell, run};
 
     #[test]
     fn test_enter() {
@@ -208,7 +217,7 @@ mod test {
         };
 
         let buffer = "exit";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::CommandNotFound(buffer.to_string())));
     }
 
     #[test]
@@ -265,13 +274,13 @@ mod test {
         };
 
         let buffer = "cd";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::IllegalArgument));
 
         let buffer = "cd a";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::NotFound));
 
         let buffer = "cd b c";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::NotFound));
 
         let buffer = "mkdir a";
         assert_eq!(run(shell, buffer), Ok(None));
@@ -296,13 +305,13 @@ mod test {
         };
 
         let buffer = "find";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::IllegalArgument));
 
         let buffer = "find a";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::NotFound));
 
         let buffer = "find b c";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::NotFound));
 
         let buffer = "mkdir a";
         assert_eq!(run(shell, buffer), Ok(None));
@@ -327,7 +336,7 @@ mod test {
         };
 
         let buffer = "mkdir";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::IllegalArgument));
 
         let buffer = "mkdir a";
         assert_eq!(run(shell, buffer), Ok(None));
@@ -352,7 +361,7 @@ mod test {
         };
 
         let buffer = "touch";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::IllegalArgument));
 
         let buffer = "touch a";
         assert_eq!(run(shell, buffer), Ok(None));
@@ -377,13 +386,13 @@ mod test {
         };
 
         let buffer = "read";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::IllegalArgument));
 
         let buffer = "read a";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::NotFound));
 
         let buffer = "read a b";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::NotFound));
 
         let buffer = "touch a";
         assert_eq!(run(shell, buffer), Ok(None));
@@ -399,6 +408,12 @@ mod test {
 
         let buffer = "read a b";
         assert_eq!(run(shell, buffer), Ok(Some("123".to_string())));
+
+        let buffer = "mkdir dir";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "read dir";
+        assert_eq!(run(shell, buffer), Err(CommandError::NotFile));
     }
 
     #[test]
@@ -411,13 +426,13 @@ mod test {
         };
 
         let buffer = "write";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::IllegalArgument));
 
         let buffer = "write a";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::IllegalArgument));
 
         let buffer = "write a 123";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::NotFound));
 
         let buffer = "touch a";
         assert_eq!(run(shell, buffer), Ok(None));
@@ -426,7 +441,7 @@ mod test {
         assert_eq!(run(shell, buffer), Ok(Some("".to_string())));
 
         let buffer = "write a";
-        assert_eq!(run(shell, buffer), Err(()));
+        assert_eq!(run(shell, buffer), Err(CommandError::IllegalArgument));
 
         let buffer = "write a 123";
         assert_eq!(run(shell, buffer), Ok(None));
@@ -439,6 +454,12 @@ mod test {
 
         let buffer = "read a";
         assert_eq!(run(shell, buffer), Ok(Some("123123 456 xyz".to_string())));
+
+        let buffer = "mkdir dir";
+        assert_eq!(run(shell, buffer), Ok(None));
+
+        let buffer = "write dir string";
+        assert_eq!(run(shell, buffer), Err(CommandError::NotFile));
     }
 }
 
