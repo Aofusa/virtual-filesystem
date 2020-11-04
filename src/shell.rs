@@ -35,22 +35,9 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
         *head
     } else { return Ok(None); };
 
-    if command == ":?" {
-        println!("to stop, press Ctrl + c or type exit");
-        println!("Command list");
-        println!("  ls");
-        println!("  cd [directory]");
-        println!("  find [path]");
-        println!("  mkdir [directory]");
-        println!("  touch [file]");
-        println!("  read [file]");
-        println!("  write [file] [string]");
-        println!("  exit");
-        Ok(None)
-    } else if command == "ls" {
+    if command == "ls" {
         let current = &shell.current.borrow();
         let result = ls(current);
-        println!("{}", result);
         Ok(Some(result))
     } else if command == "cd" {
         let change = if let Some(arg) = iter.next() {
@@ -58,11 +45,9 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
             if let Ok(pointer) = find(current, arg) {
                 Ok(pointer.clone())
             } else {
-                println!("not found.");
                 Err(CommandError::NotFound)
             }
         } else {
-            println!("illegal argument.");
             Err(CommandError::IllegalArgument)
         };
         if let Ok(change) = change {
@@ -78,14 +63,11 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
                 let node = &pointer.borrow();
                 let file = node.value();
                 let name = file.name();
-                println!("{}", name);
                 Ok(Some(name.to_string()))
             } else {
-                println!("not found.");
                 Err(CommandError::NotFound)
             }
         } else {
-            println!("illegal argument.");
             Err(CommandError::IllegalArgument)
         }
     } else if command == "mkdir" {
@@ -94,7 +76,6 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
             mkdir(current, arg.to_string());
             Ok(None)
         } else {
-            println!("illegal argument.");
             Err(CommandError::IllegalArgument)
         }
     } else if command == "touch" {
@@ -103,7 +84,6 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
             touch(current, arg.to_string(), "".to_string());
             Ok(None)
         } else {
-            println!("illegal argument.");
             Err(CommandError::IllegalArgument)
         }
     } else if command == "read" {
@@ -112,18 +92,14 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
             if let Ok(pointer) = find(current, arg) {
                 let node = &pointer.borrow();
                 if let Ok(data) = read(node) {
-                    println!("{}", data);
                     Ok(Some(data.to_string()))
                 } else {
-                    println!("not a file.");
                     Err(CommandError::NotFile)
                 }
             } else {
-                println!("not found.");
                 Err(CommandError::NotFound)
             }
         } else {
-            println!("illegal argument.");
             Err(CommandError::IllegalArgument)
         }
     } else if command == "write" {
@@ -136,7 +112,6 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
                 else { break; }
             }
             if index >= buffer.len() {
-                println!("illegal argument.");
                 return Err(CommandError::IllegalArgument);
             }
             let data = &buffer[index..];
@@ -145,20 +120,16 @@ fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
                 match write(node, data) {
                     Ok(()) => { Ok(None) },
                     Err(()) => {
-                        println!("not a file.");
                         Err(CommandError::NotFile)
                     },
                 }
             } else {
-                println!("not found.");
                 Err(CommandError::NotFound)
             }
         } else {
-            println!("illegal argument.");
             Err(CommandError::IllegalArgument)
         }
     } else {
-        println!("{} command not found.", command);
         Err(CommandError::CommandNotFound(command.to_string()))
     }
 }
@@ -182,9 +153,29 @@ pub fn interactive() {
         std::io::stdin().read_line(&mut buffer).unwrap();
         let buffer = buffer.trim();
 
-        if buffer == "exit" { break; }
+        if buffer == "exit" { break }
+        else if buffer == ":?" {
+            println!("to stop, press Ctrl + c or type exit");
+            println!("command list");
+            println!("  ls");
+            println!("  cd [directory]");
+            println!("  find [path]");
+            println!("  mkdir [directory]");
+            println!("  touch [file]");
+            println!("  read [file]");
+            println!("  write [file] [string]");
+            println!("  exit");
+            continue
+        }
 
-        let _ = run(shell, buffer);
+        match run(shell, buffer) {
+            Ok(None) => {},
+            Ok(Some(response)) => { println!("{}", response) },
+            Err(CommandError::NotFound) => { println!("not found.") },
+            Err(CommandError::IllegalArgument) => { println!("illegal argument.") },
+            Err(CommandError::NotFile) => { println!("not file.") },
+            Err(CommandError::CommandNotFound(command)) => { println!("{} command not found.", command) },
+        }
     }
 }
 
@@ -230,7 +221,7 @@ mod test {
         };
 
         let buffer = ":?";
-        assert_eq!(run(shell, buffer), Ok(None));
+        assert_eq!(run(shell, buffer), Err(CommandError::CommandNotFound(buffer.to_string())));
     }
 
     #[test]
