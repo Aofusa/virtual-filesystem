@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use crate::graph::{Node, NodePointer, Edge, Graph};
+use crate::virtual_filesystem_core::graph::{Node, NodePointer, Edge, Graph};
 
 
 pub type Name = String;
@@ -81,7 +81,7 @@ impl Graph<FileType> for FileNode {
 
 #[cfg(test)]
 mod tests_file_object {
-    use crate::filesystem::{FileType, FileObject};
+    use crate::virtual_filesystem_core::filesystem::{FileType, FileObject};
 
     #[test]
     fn test_name() {
@@ -98,8 +98,8 @@ mod tests_file_object {
 mod tests_file_node {
     use std::rc::Rc;
     use std::cell::RefCell;
-    use crate::graph::{Node, Edge};
-    use crate::filesystem::{FileNode, FileType};
+    use crate::virtual_filesystem_core::graph::{Node, Edge};
+    use crate::virtual_filesystem_core::filesystem::{FileNode, FileType};
 
     #[test]
     fn test_create() {
@@ -146,8 +146,8 @@ mod tests_file_node {
 
 #[cfg(test)]
 mod tests_graph {
-    use crate::graph::{Node, Edge, Graph};
-    use crate::filesystem::{FileNode, FileType};
+    use crate::virtual_filesystem_core::graph::{Node, Edge, Graph};
+    use crate::virtual_filesystem_core::filesystem::{FileNode, FileType};
 
     #[test]
     fn test_edge() {

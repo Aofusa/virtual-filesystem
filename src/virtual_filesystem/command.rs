@@ -1,5 +1,5 @@
-use crate::graph::{NodePointer, Graph};
-use crate::filesystem::{FileNode, FileType, FileObject, Name, Data};
+use crate::virtual_filesystem_core::graph::{NodePointer, Graph};
+use crate::virtual_filesystem_core::filesystem::{FileNode, FileType, FileObject, Name, Data};
 
 
 pub fn ls(directory: &FileNode) -> String {
@@ -68,9 +68,9 @@ pub fn find(directory: &FileNode, target: &str) -> Result<NodePointer<FileType>,
 
 #[cfg(test)]
 mod tests {
-    use crate::graph::{Edge, Graph};
-    use crate::filesystem::{FileNode, FileObject};
-    use crate::command::{ls, mkdir, touch, write, read, find};
+    use crate::virtual_filesystem_core::graph::{Edge, Graph};
+    use crate::virtual_filesystem_core::filesystem::{FileNode, FileObject};
+    use crate::virtual_filesystem::command::{ls, mkdir, touch, write, read, find};
 
     #[test]
     fn test_command() {
