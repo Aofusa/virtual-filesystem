@@ -14,7 +14,19 @@ Rust で作るインメモリな擬似ファイルシステムみたいなもの
 exit と打つか Ctrl + c で終了できる  
 
 ```sh
-cargo run
+$ cargo run
+start interactive shell. Enjoy! :/
+to stop, press Ctrl + c or type exit
+if you need help, type :?
+$> 
+mkdir dir
+$> 
+touch file
+$> 
+ls
+dir	file
+$> 
+exit
 ```
 
 ```sh
