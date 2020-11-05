@@ -2,8 +2,7 @@ mod virtual_filesystem_core;
 mod virtual_filesystem;
 
 
-use virtual_filesystem_core::filesystem::FileNode;
-use virtual_filesystem::shell::{CommandError, Buffer, Shell, run};
+use virtual_filesystem::shell::{CommandError, Buffer, Shell};
 
 
 fn main() {
@@ -11,9 +10,7 @@ fn main() {
     println!("to stop, press Ctrl + c or type exit");
     println!("if you need help, type :?");
 
-    let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-    let current = root.clone();
-    let shell = &mut Shell::new(root, current);
+    let shell = &mut Shell::init();
     
     loop {
         println!("$> ");
@@ -36,7 +33,7 @@ fn main() {
             continue
         }
 
-        match run(shell, buffer) {
+        match shell.run(buffer) {
             Ok(None) => {},
             Ok(Some(response)) => { println!("{}", response) },
             Err(CommandError::NotFound) => { println!("not found.") },
