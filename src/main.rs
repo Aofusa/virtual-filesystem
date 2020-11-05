@@ -47,6 +47,7 @@ fn main() {
         match shell.run(buffer) {
             Ok(None) => {},
             Ok(Some(response)) => { println!("{}", response) },
+            Err(CommandError::UnknownError) => { println!("unknown error.") },
             Err(CommandError::NotFound) => { println!("not found.") },
             Err(CommandError::IllegalArgument) => { println!("illegal argument.") },
             Err(CommandError::NotFile) => { println!("not file.") },

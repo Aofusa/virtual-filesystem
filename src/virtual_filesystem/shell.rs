@@ -11,6 +11,7 @@ pub type CommandResult = Result<Option<String>, CommandError>;
 
 #[derive(Debug, PartialEq)]
 pub enum CommandError {
+    UnknownError,
     NotFound,
     IllegalArgument,
     NotFile,
@@ -87,10 +88,22 @@ impl<T: LoggerRepository> Shell<T> {
         } else if command == "cd" {
             let change = if let Some(arg) = iter.next() {
                 let current = &self.current;
-                if let Ok(pointer) = find(current, arg) {
-                    Ok(pointer.clone())
+                if arg == &"/" {
+                    Ok(self.root.clone())
+                } else if arg == &"." {
+                    Ok(current.clone())
+                } else if arg == &".." {
+                    if let Some(parent) = current.borrow().1.iter().next() {
+                        Ok(parent.clone())
+                    } else {
+                        Err(CommandError::UnknownError)
+                    }
                 } else {
-                    Err(CommandError::NotFound)
+                    if let Ok(pointer) = find(current, arg) {
+                        Ok(pointer.clone())
+                    } else {
+                        Err(CommandError::NotFound)
+                    }
                 }
             } else {
                 Err(CommandError::IllegalArgument)
@@ -268,17 +281,56 @@ mod test {
         let buffer = "cd b c";
         assert_eq!(shell.run(buffer), Err(CommandError::NotFound));
 
+        let buffer = "pwd";
+        assert_eq!(shell.run(buffer), Ok(Some("/".to_string())));
+
+        let buffer = "cd .";
+        assert_eq!(shell.run(buffer), Ok(None));
+
+        let buffer = "pwd";
+        assert_eq!(shell.run(buffer), Ok(Some("/".to_string())));
+
+        let buffer = "cd ..";
+        assert_eq!(shell.run(buffer), Ok(None));
+
+        let buffer = "pwd";
+        assert_eq!(shell.run(buffer), Ok(Some("/".to_string())));
+
         let buffer = "mkdir a";
         assert_eq!(shell.run(buffer), Ok(None));
 
         let buffer = "cd a";
         assert_eq!(shell.run(buffer), Ok(None));
 
+        let buffer = "cd .";
+        assert_eq!(shell.run(buffer), Ok(None));
+
+        let buffer = "pwd";
+        assert_eq!(shell.run(buffer), Ok(Some("/a".to_string())));
+
         let buffer = "mkdir b";
         assert_eq!(shell.run(buffer), Ok(None));
 
         let buffer = "cd b c";
         assert_eq!(shell.run(buffer), Ok(None));
+
+        let buffer = "cd .";
+        assert_eq!(shell.run(buffer), Ok(None));
+
+        let buffer = "pwd";
+        assert_eq!(shell.run(buffer), Ok(Some("/a/b".to_string())));
+
+        let buffer = "cd ..";
+        assert_eq!(shell.run(buffer), Ok(None));
+
+        let buffer = "pwd";
+        assert_eq!(shell.run(buffer), Ok(Some("/a".to_string())));
+
+        let buffer = "cd /";
+        assert_eq!(shell.run(buffer), Ok(None));
+
+        let buffer = "pwd";
+        assert_eq!(shell.run(buffer), Ok(Some("/".to_string())));
     }
 
     #[test]
