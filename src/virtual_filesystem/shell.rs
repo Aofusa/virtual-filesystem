@@ -1,7 +1,7 @@
 use crate::virtual_filesystem_core::graph::Graph;
 use crate::virtual_filesystem_core::filesystem::{FileNode, FileNodePointer, FileObject};
 use crate::virtual_filesystem_core::logger::{LoggerRepository, LoggerInteractor};
-use crate::virtual_filesystem::command::{ls, mkdir, touch, write, read, find};
+use crate::virtual_filesystem::command::{ls, pwd, mkdir, touch, write, read, find};
 
 
 pub type Buffer = String;
@@ -79,6 +79,10 @@ impl<T: LoggerRepository> Shell<T> {
         if command == "ls" {
             let current = &self.current;
             let result = ls(current);
+            Ok(Some(result))
+        } else if command == "pwd" {
+            let current = &self.current;
+            let result = pwd(current);
             Ok(Some(result))
         } else if command == "cd" {
             let change = if let Some(arg) = iter.next() {
@@ -229,6 +233,26 @@ mod test {
 
         let buffer = "ls b c";
         assert_eq!(shell.run(buffer), Ok(Some("a".to_string())));
+    }
+
+    #[test]
+    fn test_pwd() {
+        let shell = &mut Shell::init();
+
+        let buffer = "pwd";
+        assert_eq!(shell.run(buffer), Ok(Some("/".to_string())));
+
+        let buffer = "pwd a";
+        assert_eq!(shell.run(buffer), Ok(Some("/".to_string())));
+
+        let buffer = "mkdir a";
+        assert_eq!(shell.run(buffer), Ok(None));
+
+        let buffer = "cd a";
+        assert_eq!(shell.run(buffer), Ok(None));
+
+        let buffer = "pwd";
+        assert_eq!(shell.run(buffer), Ok(Some("/a".to_string())));
     }
 
     #[test]

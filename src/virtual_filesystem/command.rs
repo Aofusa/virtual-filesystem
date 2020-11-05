@@ -10,6 +10,24 @@ pub fn ls(directory: &FileNodePointer) -> String {
 }
 
 
+pub fn pwd(current: &FileNodePointer) -> String {
+    let mut stack: Vec<String> = Vec::new();
+    let mut position = current.clone();
+
+    loop {
+        if let Some(parent) = position.clone().borrow().1.iter().next() {
+            stack.push(position.borrow().0.name().to_string());
+            if NodePointer::ptr_eq(parent, &position) { break }
+            position = parent.clone();
+        } else { break }
+    }
+    
+    if stack.len() == 1 { stack.push("".to_string()) }
+    stack.reverse();
+    stack.join("/")
+}
+
+
 
 pub fn mkdir(directory: &FileNodePointer, name: Name) {
     directory.borrow_mut().connect(
@@ -71,7 +89,7 @@ pub fn find(directory: &FileNodePointer, target: &str) -> Result<NodePointer<Fil
 mod tests {
     use crate::virtual_filesystem_core::graph::{Graph, Edge};
     use crate::virtual_filesystem_core::filesystem::{FileNode, FileObject};
-    use crate::virtual_filesystem::command::{ls, mkdir, touch, write, read, find};
+    use crate::virtual_filesystem::command::{ls, pwd, mkdir, touch, write, read, find};
 
     #[test]
     fn test_command() {
@@ -104,6 +122,15 @@ mod tests {
                 assert_eq!(name, "file1");
                 assert_eq!(data, Ok("file1 test\nadd writing".to_string()));
             }
+        } else {
+            assert!(false)
+        }
+
+        assert_eq!(pwd(current), "/".to_string());
+        if let Ok(home) = find(current, "home") {
+            assert_eq!(pwd(&home), "/home".to_string())
+        } else {
+            assert!(false)
         }
     }
 }
