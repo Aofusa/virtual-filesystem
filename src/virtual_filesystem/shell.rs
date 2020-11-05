@@ -1,3 +1,4 @@
+use crate::virtual_filesystem_core::graph::Graph;
 use crate::virtual_filesystem_core::filesystem::{FileNode, FileNodePointer, FileObject};
 use crate::virtual_filesystem_core::logger::{LoggerRepository, LoggerInteractor};
 use crate::virtual_filesystem::command::{ls, mkdir, touch, write, read, find};
@@ -43,7 +44,7 @@ impl Shell<DefaultLoggerRepository> {
 
 
 impl<T: LoggerRepository> Shell<T> {
-    pub fn new(root: FileNodePointer, current: FileNodePointer, logger: T) -> Shell<T> {
+    fn new(root: FileNodePointer, current: FileNodePointer, logger: T) -> Shell<T> {
         Shell {
             root: root,
             current: current,
@@ -54,6 +55,7 @@ impl<T: LoggerRepository> Shell<T> {
     pub fn init_with_logger(logger: T) -> Shell<T> {
         let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
         let current = root.clone();
+        root.borrow_mut().connect(current.clone());
         Shell::new(root, current, logger)
     }
 
@@ -75,12 +77,12 @@ impl<T: LoggerRepository> Shell<T> {
         } else { return Ok(None); };
 
         if command == "ls" {
-            let current = &self.current.borrow();
+            let current = &self.current;
             let result = ls(current);
             Ok(Some(result))
         } else if command == "cd" {
             let change = if let Some(arg) = iter.next() {
-                let current = &self.current.borrow();
+                let current = &self.current;
                 if let Ok(pointer) = find(current, arg) {
                     Ok(pointer.clone())
                 } else {
@@ -96,7 +98,7 @@ impl<T: LoggerRepository> Shell<T> {
                 Err(change.unwrap_err())
             }
         } else if command == "find" {
-            let current = &self.current.borrow();
+            let current = &self.current;
             if let Some(arg) = iter.next() {
                 if let Ok(pointer) = find(current, arg) {
                     let node = &pointer.borrow();
@@ -110,7 +112,7 @@ impl<T: LoggerRepository> Shell<T> {
                 Err(CommandError::IllegalArgument)
             }
         } else if command == "mkdir" {
-            let current = &mut self.current.borrow_mut();
+            let current = &mut self.current;
             if let Some(arg) = iter.next() {
                 mkdir(current, arg.to_string());
                 Ok(None)
@@ -118,7 +120,7 @@ impl<T: LoggerRepository> Shell<T> {
                 Err(CommandError::IllegalArgument)
             }
         } else if command == "touch" {
-            let current = &mut self.current.borrow_mut();
+            let current = &mut self.current;
             if let Some(arg) = iter.next() {
                 touch(current, arg.to_string(), "".to_string());
                 Ok(None)
@@ -126,10 +128,10 @@ impl<T: LoggerRepository> Shell<T> {
                 Err(CommandError::IllegalArgument)
             }
         } else if command == "read" {
-            let current = &self.current.borrow();
+            let current = &self.current;
             if let Some(arg) = iter.next() {
                 if let Ok(pointer) = find(current, arg) {
-                    let node = &pointer.borrow();
+                    let node = &pointer;
                     if let Ok(data) = read(node) {
                         Ok(Some(data.to_string()))
                     } else {
@@ -142,7 +144,7 @@ impl<T: LoggerRepository> Shell<T> {
                 Err(CommandError::IllegalArgument)
             }
         } else if command == "write" {
-            let current = &mut self.current.borrow_mut();
+            let current = &mut self.current;
             if let Some(arg) = iter.next() {
                 let mut index =
                     buffer.rfind(arg).unwrap() + arg.len();
@@ -155,7 +157,7 @@ impl<T: LoggerRepository> Shell<T> {
                 }
                 let data = &buffer[index..];
                 if let Ok(pointer) = find(current, arg) {
-                    let node = &mut pointer.borrow_mut();
+                    let node = &pointer;
                     match write(node, data) {
                         Ok(()) => { Ok(None) },
                         Err(()) => {

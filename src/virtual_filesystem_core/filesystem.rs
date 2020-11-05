@@ -64,10 +64,8 @@ impl FileNode {
 
 impl Graph for FileNode {
     type NodeType = FileType;
-    fn connect(&mut self, node: FileNode) {
-        self.1.push(
-            NodePointer::new(RefCell::new(node))
-        );
+    fn connect(&mut self, node: FileNodePointer) {
+        self.1.push(node.clone())
     }
 }
 
