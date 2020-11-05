@@ -23,8 +23,8 @@ pub struct Shell<T>
 where
     T: LoggerRepository,
 {
-    root: FileNodePointer,
-    current: FileNodePointer,
+    pub root: FileNodePointer,
+    pub current: FileNodePointer,
     logger: LoggerInteractor<T>,
 }
 

@@ -2,6 +2,7 @@ mod virtual_filesystem_core;
 mod virtual_filesystem;
 
 
+use virtual_filesystem::command::pwd;
 use virtual_filesystem::shell::{CommandError, Buffer, Shell};
 use virtual_filesystem_core::logger::LoggerRepository;
 
@@ -22,7 +23,7 @@ fn main() {
     let mut shell = Shell::init();
     
     loop {
-        println!("$> ");
+        println!("[{}] $> ", pwd(&shell.current));
         let mut buffer = Buffer::new();
         std::io::stdin().read_line(&mut buffer).unwrap();
         let buffer = buffer.trim();
@@ -32,6 +33,7 @@ fn main() {
             println!("to stop, press Ctrl + c or type exit");
             println!("command list");
             println!("  ls");
+            println!("  pwd");
             println!("  cd [directory]");
             println!("  find [path]");
             println!("  mkdir [directory]");
