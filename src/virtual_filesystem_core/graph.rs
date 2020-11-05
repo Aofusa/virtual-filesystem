@@ -8,7 +8,8 @@ pub type NodePointer<T> = Rc<RefCell<Node<T>>>;
 pub type Edge<T> = Vec<NodePointer<T>>;
 
 
-pub trait Graph<T> {
-    fn connect(&mut self, node: Node<T>);
+pub trait Graph {
+    type NodeType;
+    fn connect(&mut self, node: Node<Self::NodeType>);
 }
 
