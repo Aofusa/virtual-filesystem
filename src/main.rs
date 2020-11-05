@@ -3,6 +3,15 @@ mod virtual_filesystem;
 
 
 use virtual_filesystem::shell::{CommandError, Buffer, Shell};
+use virtual_filesystem_core::logger::LoggerRepository;
+
+
+struct MockLoggerRepository {}
+impl LoggerRepository for MockLoggerRepository {
+    fn print(&self, message: &str) {
+        println!("{}", message);
+    }
+}
 
 
 fn main() {
@@ -10,7 +19,7 @@ fn main() {
     println!("to stop, press Ctrl + c or type exit");
     println!("if you need help, type :?");
 
-    let shell = &mut Shell::init();
+    let mut shell = Shell::init();
     
     loop {
         println!("$> ");

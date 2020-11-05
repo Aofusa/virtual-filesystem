@@ -1,4 +1,5 @@
 use crate::virtual_filesystem_core::filesystem::{FileNode, FileNodePointer, FileObject};
+use crate::virtual_filesystem_core::logger::{LoggerRepository, LoggerInteractor};
 use crate::virtual_filesystem::command::{ls, mkdir, touch, write, read, find};
 
 
@@ -17,27 +18,52 @@ pub enum CommandError {
 
 
 #[derive(Debug)]
-pub struct Shell {
+pub struct Shell<T>
+where
+    T: LoggerRepository,
+{
     root: FileNodePointer,
     current: FileNodePointer,
+    logger: LoggerInteractor<T>,
 }
 
 
-impl Shell {
-    pub fn new(root: FileNodePointer, current: FileNodePointer) -> Shell {
+pub struct DefaultLoggerRepository {}
+impl LoggerRepository for DefaultLoggerRepository {
+    fn print(&self, _message: &str) {}
+}
+
+
+impl Shell<DefaultLoggerRepository> {
+    #[allow(dead_code)]
+    pub fn init() -> Shell<DefaultLoggerRepository> {
+        Shell::init_with_logger(DefaultLoggerRepository{})
+    }
+}
+
+
+impl<T: LoggerRepository> Shell<T> {
+    pub fn new(root: FileNodePointer, current: FileNodePointer, logger: T) -> Shell<T> {
         Shell {
             root: root,
             current: current,
+            logger: LoggerInteractor::new(logger),
         }
     }
 
-    pub fn init() -> Shell {
+    pub fn init_with_logger(logger: T) -> Shell<T> {
         let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
         let current = root.clone();
-        Shell::new(root, current)
+        Shell::new(root, current, logger)
+    }
+
+    #[allow(dead_code)]
+    pub fn replace_logger<R: LoggerRepository>(&self, logger: R) -> Shell<R> {
+        Shell::new(self.root.clone(), self.current.clone(), logger)
     }
 
     pub fn run(&mut self, buffer: &Arg) -> CommandResult {
+        self.logger.print(&format!("run arg {}", buffer));
         let argv: Vec<&Arg> = buffer.trim()
             .split(' ')
             .collect();
@@ -151,17 +177,11 @@ impl Shell {
 
 #[cfg(test)]
 mod test {
-    use crate::virtual_filesystem_core::filesystem::FileNode;
     use crate::virtual_filesystem::shell::{CommandError, Shell};
 
     #[test]
     fn test_enter() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = "";
         assert_eq!(shell.run(buffer), Ok(None));
@@ -169,12 +189,7 @@ mod test {
 
     #[test]
     fn test_exit() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = "exit";
         assert_eq!(shell.run(buffer), Err(CommandError::CommandNotFound(buffer.to_string())));
@@ -182,12 +197,7 @@ mod test {
 
     #[test]
     fn test_help() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = ":?";
         assert_eq!(shell.run(buffer), Err(CommandError::CommandNotFound(buffer.to_string())));
@@ -195,12 +205,7 @@ mod test {
 
     #[test]
     fn test_ls() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = "ls";
         assert_eq!(shell.run(buffer), Ok(Some("".to_string())));
@@ -226,12 +231,7 @@ mod test {
 
     #[test]
     fn test_cd() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = "cd";
         assert_eq!(shell.run(buffer), Err(CommandError::IllegalArgument));
@@ -257,12 +257,7 @@ mod test {
 
     #[test]
     fn test_find() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = "find";
         assert_eq!(shell.run(buffer), Err(CommandError::IllegalArgument));
@@ -288,12 +283,7 @@ mod test {
 
     #[test]
     fn test_mkdir() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = "mkdir";
         assert_eq!(shell.run(buffer), Err(CommandError::IllegalArgument));
@@ -313,12 +303,7 @@ mod test {
 
     #[test]
     fn test_touch() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = "touch";
         assert_eq!(shell.run(buffer), Err(CommandError::IllegalArgument));
@@ -338,12 +323,7 @@ mod test {
 
     #[test]
     fn test_read() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = "read";
         assert_eq!(shell.run(buffer), Err(CommandError::IllegalArgument));
@@ -378,12 +358,7 @@ mod test {
 
     #[test]
     fn test_write() {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
-        let current = root.clone();
-        let shell = &mut Shell{
-            root: root,
-            current: current,
-        };
+        let shell = &mut Shell::init();
 
         let buffer = "write";
         assert_eq!(shell.run(buffer), Err(CommandError::IllegalArgument));
