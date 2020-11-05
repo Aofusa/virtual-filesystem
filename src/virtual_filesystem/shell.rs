@@ -1,4 +1,3 @@
-use crate::virtual_filesystem_core::graph::Graph;
 use crate::virtual_filesystem_core::filesystem::{FileNodePointer, FileObject};
 use crate::virtual_filesystem::command::{ls, mkdir, touch, write, read, find};
 
@@ -71,7 +70,7 @@ pub fn run(shell: &mut Shell, buffer: &Arg) -> CommandResult {
         if let Some(arg) = iter.next() {
             if let Ok(pointer) = find(current, arg) {
                 let node = &pointer.borrow();
-                let file = node.value();
+                let file = &node.0;
                 let name = file.name();
                 Ok(Some(name.to_string()))
             } else {

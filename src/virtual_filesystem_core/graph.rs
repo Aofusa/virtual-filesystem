@@ -9,8 +9,6 @@ pub type Edge<T> = Vec<NodePointer<T>>;
 
 
 pub trait Graph<T> {
-    fn edge(&self) -> &Edge<T>;
-    fn value(&self) -> &T;
     fn connect(&mut self, node: Node<T>);
 }
 

@@ -3,9 +3,9 @@ use crate::virtual_filesystem_core::filesystem::{FileNode, FileType, FileObject,
 
 
 pub fn ls(directory: &FileNode) -> String {
-    let nodes = directory.edge();
+    let nodes = &directory.1;
     let iter = nodes.iter();
-    iter.map(|x| x.borrow().value().name().to_string()).collect::<Vec<String>>().join("\t")
+    iter.map(|x| x.borrow().0.name().to_string()).collect::<Vec<String>>().join("\t")
 }
 
 
@@ -38,7 +38,7 @@ pub fn write(file: &mut FileNode, input: &str) -> Result<(), ()> {
 
 
 pub fn read(file: &FileNode) -> Result<&Data, ()> {
-    let n = &file.value();
+    let n = &file.0;
 
     match n {
         FileType::File{ name: _, data } => { Ok(data) },
@@ -48,11 +48,11 @@ pub fn read(file: &FileNode) -> Result<&Data, ()> {
 
 
 pub fn find(directory: &FileNode, target: &str) -> Result<NodePointer<FileType>, ()> {
-    let edges = directory.edge();
+    let edges = &directory.1;
 
     for e in edges {
         let s = e.borrow()
-            .value()
+            .0
             .name()
             .to_string();
 
@@ -68,7 +68,7 @@ pub fn find(directory: &FileNode, target: &str) -> Result<NodePointer<FileType>,
 
 #[cfg(test)]
 mod tests {
-    use crate::virtual_filesystem_core::graph::{Edge, Graph};
+    use crate::virtual_filesystem_core::graph::Edge;
     use crate::virtual_filesystem_core::filesystem::{FileNode, FileObject};
     use crate::virtual_filesystem::command::{ls, mkdir, touch, write, read, find};
 
@@ -85,7 +85,7 @@ mod tests {
         if let Ok(pointer) = find(current, "file1") {
             {
                 let node = &pointer.borrow();
-                let file = node.value();
+                let file = &node.0;
                 let name = file.name();
                 let data = read(node);
                 assert_eq!(name, "file1");
@@ -96,7 +96,7 @@ mod tests {
                 let node = &mut pointer.borrow_mut();
                 assert_eq!(write(node, "\nadd writing"), Ok(()));
 
-                let file = node.value();
+                let file = &node.0;
                 let name = file.name();
                 let data = read(node);
                 assert_eq!(name, "file1");

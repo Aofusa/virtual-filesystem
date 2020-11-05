@@ -63,14 +63,6 @@ impl FileNode {
 
 
 impl Graph<FileType> for FileNode {
-    fn edge(&self) -> &Edge<FileType> {
-        &self.1
-    }
-
-    fn value(&self) -> &FileType {
-        &self.0
-    }
-
     fn connect(&mut self, node: FileNode) {
         self.1.push(
             NodePointer::new(RefCell::new(node))
@@ -146,7 +138,7 @@ mod tests_file_node {
 
 #[cfg(test)]
 mod tests_graph {
-    use crate::virtual_filesystem_core::graph::{Node, Edge, Graph};
+    use crate::virtual_filesystem_core::graph::{Node, Edge};
     use crate::virtual_filesystem_core::filesystem::{FileNode, FileType};
 
     #[test]
@@ -155,13 +147,13 @@ mod tests_graph {
             FileType::Directory{ name: "node1".to_string() },
             Edge::new(),
         );
-        assert_eq!(node1.edge(), &Edge::new());
+        assert_eq!(node1.1, Edge::new());
 
         let node2 = Node(
             FileType::Directory{ name: "node2".to_string() },
             vec![],
         );
-        assert_eq!(node2.edge(), &vec![]);
+        assert_eq!(node2.1, vec![]);
 
         let node3 = Node(
             FileType::Directory{ name: "node3".to_string() },
@@ -169,8 +161,8 @@ mod tests_graph {
                 FileNode::create_directory("sub node".to_string(), vec![]).to_pointer()
             ],
         );
-        assert_eq!(node3.edge(),
-            &vec![
+        assert_eq!(node3.1,
+            vec![
                 FileNode::create_directory("sub node".to_string(), vec![]).to_pointer()
             ]
         );
