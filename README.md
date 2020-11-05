@@ -54,3 +54,17 @@ cargo test
 - :?  
   ヘルプを表示  
 
+
+Dockerized
+------
+
+ビルド
+```sh
+docker build -t dev.local/virtual-filesystem .
+```
+
+実行
+```sh
+docker run -it --rm --name virtual-filesystem dev.local/virtual-filesystem
+```
+
