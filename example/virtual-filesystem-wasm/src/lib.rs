@@ -13,7 +13,7 @@ extern {
 }
 
 #[wasm_bindgen]
-pub fn greet() {
-    alert("Hello, virtual-filesystem-wasm!");
+pub fn greet(name: &str) {
+    alert(&format!("Hello {}, virtual-filesystem-wasm!", name));
 }
 

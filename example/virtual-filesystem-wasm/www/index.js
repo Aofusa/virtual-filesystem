@@ -1,3 +1,3 @@
 import * as wasm from "virtual-filesystem-wasm";
 
-wasm.greet();
+wasm.greet("y'all");
