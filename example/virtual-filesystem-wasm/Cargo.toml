@@ -27,7 +27,11 @@ features = [
 
 
 [profile.release]
-opt-level = "s"
+panic = "abort"
+codegen-units = 1
+opt-level = "z"
+#opt-level = "s"
+lto = true
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
