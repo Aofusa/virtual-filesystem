@@ -1,10 +1,6 @@
-mod virtual_filesystem_core;
-mod virtual_filesystem;
-
-
-use virtual_filesystem::command::pwd;
-use virtual_filesystem::shell::{CommandError, Buffer, Shell};
-use virtual_filesystem_core::logger::LoggerRepository;
+use virtual_filesystem::virtual_filesystem::command::pwd;
+use virtual_filesystem::virtual_filesystem::shell::{CommandError, Buffer, Shell};
+use virtual_filesystem::virtual_filesystem_core::logger::LoggerRepository;
 
 
 struct MockLoggerRepository {}
