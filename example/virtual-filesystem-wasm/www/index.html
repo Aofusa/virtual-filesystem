@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8">
-    <title>Hello wasm-pack!</title>
+    <title>Virtual filesystem wasm</title>
     <style>
       body {
         position: absolute;
@@ -16,16 +16,18 @@
         justify-content: center;
       }
 
-      #fps {
+      #response {
         white-space: pre;
         font-family: monospace;
       }
     </style>
   </head>
   <body>
-    <div id="fps"></div>
-    <canvas id="virtual-filesystem-wasm-canvas"></canvas>
-    <button id="play-pause"></button>
+    <div id="virtual-filesystem-wasm-command-response"></div>
+    <form id="virtual-filesystem-wasm-command-form" action="#">
+      <input type="text" id="virtual-filesystem-wasm-command-input">
+      <button id="virtual-filesystem-wasm-command-run">Run</button>
+    </form>
     <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript>
     <script src="./bootstrap.js"></script>
   </body>
