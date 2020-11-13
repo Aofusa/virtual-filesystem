@@ -1,6 +1,6 @@
 use crate::virtual_filesystem_core::graph::Graph;
 use crate::virtual_filesystem_core::filesystem::{FileNode, FileNodePointer, FileObject};
-use crate::virtual_filesystem_core::logger::{LoggerRepository, LoggerInteractor};
+use crate::utils::logger::{LoggerRepository, LoggerInteractor};
 use crate::virtual_filesystem::command::{ls, pwd, mkdir, touch, write, read, find};
 
 
