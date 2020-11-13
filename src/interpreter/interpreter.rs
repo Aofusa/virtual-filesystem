@@ -11,27 +11,21 @@ fn split_digit(s: &str) -> (&str, &str) {
     s.split_at(first_non_num)
 }
 
-pub fn interpret(s: &str) -> InterpreterResult {
-    let mut stack = 0;
-    let mut p = s.chars();
-
+fn strtol(p: &mut std::str::Chars) -> i32 {
     let (n, _) = split_digit(p.as_str());
     for _ in 0..n.len() { p.next(); }
-    stack = stack + n.parse::<i32>().unwrap();
+    n.parse().unwrap()
+}
+
+pub fn interpret(s: &str) -> InterpreterResult {
+    let mut p = s.chars();
+    let mut stack = strtol(&mut p);
 
     loop {
         match p.next() {
             None => break,
-            Some('+') => {
-                let (n, _) = split_digit(p.as_str());
-                for _ in 0..n.len() { p.next(); }
-                stack = stack + n.parse::<i32>().unwrap();
-            },
-            Some('-') => {
-                let (n, _) = split_digit(p.as_str());
-                for _ in 0..n.len() { p.next(); }
-                stack = stack - n.parse::<i32>().unwrap();
-            },
+            Some('+') => stack = stack + strtol(&mut p),
+            Some('-') => stack = stack - strtol(&mut p),
             _ => { panic!("unreachable here") }
         }
     }
