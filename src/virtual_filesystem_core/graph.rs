@@ -13,3 +13,11 @@ pub trait Graph {
     fn connect(&mut self, node: NodePointer<Self::NodeType>);
 }
 
+
+impl<T> Graph for Node<T> {
+    type NodeType = T;
+    fn connect(&mut self, node: NodePointer<T>) {
+        self.1.push(node.clone())
+    }
+}
+

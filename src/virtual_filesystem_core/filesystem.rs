@@ -62,14 +62,6 @@ impl FileNode {
 }
 
 
-impl Graph for FileNode {
-    type NodeType = FileType;
-    fn connect(&mut self, node: FileNodePointer) {
-        self.1.push(node.clone())
-    }
-}
-
-
 #[cfg(test)]
 mod tests_file_object {
     use crate::virtual_filesystem_core::filesystem::{FileType, FileObject};
