@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use crate::virtual_filesystem_core::graph::{Node, NodePointer, Edge, Graph};
+use crate::virtual_filesystem_core::graph::{Node, NodePointer, Edge};
 
 
 pub type Name = String;
