@@ -22,3 +22,9 @@ impl<T: LoggerRepository> LoggerInteractor<T> {
     }
 }
 
+
+pub struct DefaultLoggerRepository {}
+impl LoggerRepository for DefaultLoggerRepository {
+    fn print(&self, _message: &str) {}
+}
+

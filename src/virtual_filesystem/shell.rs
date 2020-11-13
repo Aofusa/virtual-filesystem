@@ -1,6 +1,6 @@
 use crate::virtual_filesystem_core::graph::Graph;
 use crate::virtual_filesystem_core::filesystem::{FileNode, FileNodePointer, FileObject};
-use crate::utils::logger::{LoggerRepository, LoggerInteractor};
+use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
 use crate::virtual_filesystem::command::{ls, pwd, mkdir, touch, write, read, find};
 
 
@@ -27,12 +27,6 @@ where
     pub root: FileNodePointer,
     pub current: FileNodePointer,
     logger: LoggerInteractor<T>,
-}
-
-
-pub struct DefaultLoggerRepository {}
-impl LoggerRepository for DefaultLoggerRepository {
-    fn print(&self, _message: &str) {}
 }
 
 
