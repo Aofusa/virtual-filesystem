@@ -239,7 +239,9 @@ impl<T: LoggerRepository> Interpreter<T> {
             // 空白文字をスキップ
             if p.is_whitespace() { continue }
 
-            if p == '+' || p == '-' {
+            if p == '+' || p == '-' ||
+               p == '*' || p == '/' ||
+               p == '(' || p == ')' {
                 let c = cur.clone();
                 cur = c.borrow_mut()
                     .new(
@@ -525,7 +527,9 @@ mod tests {
         assert_eq!(x.interpret("5 - 3 a"), Err(InterpreterError::Untokenized));
         assert_eq!(x.interpret("2--"), Err(InterpreterError::Unexpected));
         // assert_eq!(x.interpret("1 2"), Err(InterpreterError::Unexpected));
-        assert_eq!(x.interpret("1 2"), Err(InterpreterError::Unexpected));
+        assert_eq!(x.interpret("5+6*7"), Ok(Some("47".to_string())));
+        assert_eq!(x.interpret("5*(9-6)"), Ok(Some("15".to_string())));
+        assert_eq!(x.interpret("(3+5) / 2"), Ok(Some("4".to_string())));
     }
 }
 
