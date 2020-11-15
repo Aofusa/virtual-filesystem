@@ -48,7 +48,7 @@ impl<T: LoggerRepository + Clone> Shell<T> {
     }
 
     pub fn init_with_logger(logger: T) -> Shell<T> {
-        let root = FileNode::create_directory("".to_string(), vec![]).to_pointer();
+        let root = FileNode::create_directory("".to_string(), vec![]);
         let current = root.clone();
         root.borrow_mut().connect(current.clone());
         Shell::new(root, current, logger)

@@ -31,14 +31,14 @@ pub fn pwd(current: &FileNodePointer) -> String {
 
 pub fn mkdir(directory: &FileNodePointer, name: Name) {
     directory.borrow_mut().connect(
-        FileNode::create_directory(name, vec![directory.clone()]).to_pointer()
+        FileNode::create_directory(name, vec![directory.clone()])
     );
 }
 
 
 pub fn touch(directory: &FileNodePointer, name: Name, data: Data) {
     directory.borrow_mut().connect(
-        FileNode::create_file(name, data, vec![directory.clone()]).to_pointer()
+        FileNode::create_file(name, data, vec![directory.clone()])
     );
 }
 
@@ -93,7 +93,7 @@ mod tests {
 
     #[test]
     fn test_command() {
-        let root = &FileNode::create_directory("".to_string(), Edge::new()).to_pointer();
+        let root = &FileNode::create_directory("".to_string(), Edge::new());
         let current = &root.clone();
         root.borrow_mut().connect(current.clone());
 

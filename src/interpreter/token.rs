@@ -1,5 +1,3 @@
-use std::rc::Rc;
-use std::cell::RefCell;
 use crate::virtual_filesystem_core::graph::{Node, NodePointer, Graph};
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
 use super::common::split_digit;
@@ -53,27 +51,13 @@ impl TokenNode {
             .next();
         match t {
             Some(x) => x.clone(),
-            _ => Rc::new(
-                RefCell::new(
-                    Node(
-                        TokenKind::EOF,
-                        vec![],
-                    )
-                )
-            ),
+            _ => TokenNode::new(TokenKind::EOF, vec![]),
         }
     }
 
     // 新しいトークンを作成して繋げる
-    fn new(&mut self, kind: TokenKind) -> TokenNodePointer {
-        let tok = Rc::new(
-            RefCell::new(
-                Node(
-                    kind,
-                    vec![],
-                )
-            )
-        );
+    fn create(&mut self, kind: TokenKind) -> TokenNodePointer {
+        let tok = TokenNode::new(kind, vec![]);
         self.connect(tok.clone());
         tok
     }
@@ -90,17 +74,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
     }
 
     pub fn init_with_logger(logger: T) -> Tokenizer<T> {
-        Tokenizer::new(
-            Rc::new(
-                RefCell::new(
-                    Node(
-                        TokenKind::EOF,
-                        vec![],
-                    )
-                )
-            ),
-            logger
-        )
+        Tokenizer::new(TokenNode::new(TokenKind::EOF, vec![]), logger)
     }
 
     // エラー箇所を報告する
@@ -178,11 +152,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
 
     // 入力文字列pをトークナイズしてそれを返す
     pub fn tokenize(&mut self, code: &str) -> Result<TokenNodePointer, TokenizerError> {
-        let head = Rc::new(
-            RefCell::new(
-                Node(TokenKind::EOF, vec![])
-            )
-        );
+        let head = TokenNode::new(TokenKind::EOF, vec![]);
         let mut cur = head.clone();
         let mut iter = code.chars();
         self.code = code.to_string();
@@ -196,7 +166,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                p == '(' || p == ')' {
                 let c = cur.clone();
                 cur = c.borrow_mut()
-                    .new(
+                    .create(
                         TokenKind::RESERVED( p.to_string() )
                     );
                 continue
@@ -211,9 +181,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
 
                 let c = cur.clone();
                 cur = c.borrow_mut()
-                    .new(
-                        TokenKind::NUM(n)
-                    );
+                    .create( TokenKind::NUM(n) );
                 continue
             }
 
@@ -221,7 +189,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             return Err(TokenizerError::Untokenized);
         };
 
-        let _eof = cur.borrow_mut().new(TokenKind::EOF);
+        let _eof = cur.borrow_mut().create(TokenKind::EOF);
 
         let ret = head.borrow();
         self.token = ret.next();

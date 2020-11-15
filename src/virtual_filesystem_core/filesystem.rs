@@ -1,5 +1,4 @@
-use std::cell::RefCell;
-use crate::virtual_filesystem_core::graph::{Node, NodePointer, Edge};
+use crate::virtual_filesystem_core::graph::{Node, NodePointer, Edge, Graph};
 
 
 pub type Name = String;
@@ -37,27 +36,23 @@ impl FileObject for FileType {
 
 
 impl FileNode {
-    pub fn create_directory(name: Name, edge: Edge<FileType>) -> FileNode {
-        Node(
+    pub fn create_directory(name: Name, edge: Edge<FileType>) -> FileNodePointer {
+        FileNode::new(
             FileType::Directory {
                 name: name,
             },
-            edge,
+            edge
         )
     }
 
-    pub fn create_file(name: Name, data: Data, edge: Edge<FileType>) -> FileNode {
-        Node(
+    pub fn create_file(name: Name, data: Data, edge: Edge<FileType>) -> FileNodePointer {
+        FileNode::new(
             FileType::File {
                 name: name,
                 data: data,
             },
-            edge,
+            edge
         )
-    }
-
-    pub fn to_pointer(self) -> FileNodePointer {
-        FileNodePointer::new(RefCell::new(self))
     }
 }
 
@@ -79,50 +74,16 @@ mod tests_file_object {
 
 #[cfg(test)]
 mod tests_file_node {
-    use std::rc::Rc;
-    use std::cell::RefCell;
-    use crate::virtual_filesystem_core::graph::{Node, Edge};
+    use crate::virtual_filesystem_core::graph::Graph;
     use crate::virtual_filesystem_core::filesystem::{FileNode, FileType};
 
     #[test]
     fn test_create() {
-        let directory = FileNode::create_directory("directory".to_string(), Edge::new());
-        assert_eq!(directory, Node(
-            FileType::Directory{ name: "directory".to_string() },
-            Edge::new(),
-        ));
+        let directory = FileNode::create_directory("directory".to_string(), vec![]);
+        assert_eq!(directory, FileNode::new(FileType::Directory{ name: "directory".to_string() }, vec![]));
 
-        let file = FileNode::create_file("file".to_string(), "data".to_string(), Edge::new());
-        assert_eq!(file,
-            Node(
-                FileType::File{ name: "file".to_string(), data: "data".to_string() },
-                Edge::new(),
-            )
-        );
-
-        let pointer_directory = directory.to_pointer();
-        assert_eq!(pointer_directory,
-            Rc::new(
-                RefCell::new(
-                    Node(
-                        FileType::Directory{ name: "directory".to_string() },
-                        Edge::new(),
-                    )
-                )
-            )
-        );
-
-        let pointer_file = file.to_pointer();
-        assert_eq!(pointer_file,
-            Rc::new(
-                RefCell::new(
-                    Node(
-                        FileType::File{ name: "file".to_string(), data: "data".to_string() },
-                        Edge::new(),
-                    )
-                )
-            )
-        );
+        let file = FileNode::create_file("file".to_string(), "data".to_string(), vec![]);
+        assert_eq!(file, FileNode::new(FileType::File{ name: "file".to_string(), data: "data".to_string() }, vec![]));
     }
 }
 
@@ -149,12 +110,12 @@ mod tests_graph {
         let node3 = Node(
             FileType::Directory{ name: "node3".to_string() },
             vec![
-                FileNode::create_directory("sub node".to_string(), vec![]).to_pointer()
+                FileNode::create_directory("sub node".to_string(), vec![])
             ],
         );
         assert_eq!(node3.1,
             vec![
-                FileNode::create_directory("sub node".to_string(), vec![]).to_pointer()
+                FileNode::create_directory("sub node".to_string(), vec![])
             ]
         );
     }

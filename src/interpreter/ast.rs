@@ -1,6 +1,4 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-use crate::virtual_filesystem_core::graph::{Node, NodePointer};
+use crate::virtual_filesystem_core::graph::{Node, NodePointer, Graph};
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
 use super::token::Tokenizer;
 
@@ -45,26 +43,12 @@ impl AstBuilder<DefaultLoggerRepository> {
 
 
 impl AbstractSyntaxTreeNode {
-    fn new(kind: AbstractSyntaxTreeKind, lhs: AbstractSyntaxTreeNodePointer, rhs: AbstractSyntaxTreeNodePointer) ->AbstractSyntaxTreeNodePointer {
-        Rc::new(
-            RefCell::new(
-                Node(
-                    kind,
-                    vec![lhs.clone(), rhs.clone()],
-                )
-            )
-        )
+    fn create(kind: AbstractSyntaxTreeKind, lhs: AbstractSyntaxTreeNodePointer, rhs: AbstractSyntaxTreeNodePointer) -> AbstractSyntaxTreeNodePointer {
+        AbstractSyntaxTreeNode::new(kind, vec![lhs.clone(), rhs.clone()])
     }
 
     fn num(value: i32) -> AbstractSyntaxTreeNodePointer {
-        Rc::new(
-            RefCell::new(
-                Node(
-                    AbstractSyntaxTreeKind::NUM( value ),
-                    vec![],
-                )
-            )
-        )
+        AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::NUM(value), vec![])
     }
 }
 
@@ -100,7 +84,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
                     Err(e) => return Err(e),
                 }
 
-                node = AbstractSyntaxTreeNode::new(
+                node = AbstractSyntaxTreeNode::create(
                     AbstractSyntaxTreeKind::ADD,
                     node,
                     rhs.clone()
@@ -112,7 +96,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
                     Err(e) => return Err(e),
                 }
 
-                node = AbstractSyntaxTreeNode::new(
+                node = AbstractSyntaxTreeNode::create(
                     AbstractSyntaxTreeKind::SUB,
                     node,
                     rhs.clone()
@@ -138,7 +122,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
                     Err(e) => return Err(e),
                 }
 
-                node = AbstractSyntaxTreeNode::new(
+                node = AbstractSyntaxTreeNode::create(
                     AbstractSyntaxTreeKind::MUL,
                     node.clone(),
                     rhs.clone()
@@ -150,7 +134,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
                     Err(e) => return Err(e),
                 }
 
-                node = AbstractSyntaxTreeNode::new(
+                node = AbstractSyntaxTreeNode::create(
                     AbstractSyntaxTreeKind::DIV,
                     node.clone(),
                     rhs.clone()
@@ -167,7 +151,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         } else if self.tokenizer.consume("-") {
             match self.primary() {
                 Ok(x) => Ok(
-                        AbstractSyntaxTreeNode::new(
+                        AbstractSyntaxTreeNode::create(
                             AbstractSyntaxTreeKind::SUB,
                             AbstractSyntaxTreeNode::num(0),
                             x
