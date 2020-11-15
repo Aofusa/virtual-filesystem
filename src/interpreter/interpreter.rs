@@ -12,6 +12,8 @@ pub enum InterpreterError {
     Unknown,  // エラー内容不明
     Unexpected,  // 期待しているものではなかった
     Untokenized,  // トークンかできなかった
+    CalculationError,  // 演算実行時のエラー
+    ZeroStack,  // 演算スタックに何もなかった
 }
 
 
@@ -69,12 +71,51 @@ impl TokenNode {
 }
 
 
+enum AbstructSyntaxTreeKind {
+    ADD,  // +
+    SUB,  // -
+    MUL,  // *
+    DIV,  // /
+    NUM(i32),  // 整数
+}
+
+
+type AbstructSyntaxTreeNode = Node<AbstructSyntaxTreeKind>;
+type AbstructSyntaxTreeNodePointer = NodePointer<AbstructSyntaxTreeKind>;
+
+
+impl AbstructSyntaxTreeNode {
+    fn new(kind: AbstructSyntaxTreeKind, lhs: AbstructSyntaxTreeNodePointer, rhs: AbstructSyntaxTreeNodePointer) ->AbstructSyntaxTreeNodePointer {
+        Rc::new(
+            RefCell::new(
+                Node(
+                    kind,
+                    vec![lhs.clone(), rhs.clone()],
+                )
+            )
+        )
+    }
+
+    fn num(value: i32) -> AbstructSyntaxTreeNodePointer {
+        Rc::new(
+            RefCell::new(
+                Node(
+                    AbstructSyntaxTreeKind::NUM( value ),
+                    vec![],
+                )
+            )
+        )
+    }
+}
+
+
 pub struct Interpreter<T>
 where
     T: LoggerRepository
 {
     token: TokenNodePointer,  // 現在着目しているトークン
     code: String,  // 入力プログラム
+    stack: Vec<i32>,  // 演算スタック
     logger: LoggerInteractor<T>,  // ログ出力する関数
 }
 
@@ -92,6 +133,7 @@ impl<T: LoggerRepository> Interpreter<T> {
         Interpreter {
             token: token,
             code: String::new(),
+            stack: vec![],
             logger: LoggerInteractor::new(logger),
         }
     }
@@ -231,9 +273,214 @@ impl<T: LoggerRepository> Interpreter<T> {
         Ok(ret.next())
     }
 
-    pub fn interpret(&mut self, s: &str) -> InterpreterResult {
-        let mut stack = 0;
+    fn expr(&mut self) -> Result<AbstructSyntaxTreeNodePointer, InterpreterError> {
+        let mut node: AbstructSyntaxTreeNodePointer;
+        match self.mul() {
+            Ok(x) => node = x,
+            Err(e) => return Err(e),
+        }
 
+        loop {
+            if self.consume("+") {
+                let rhs: AbstructSyntaxTreeNodePointer;
+                match self.mul() {
+                    Ok(x) => rhs = x,
+                    Err(e) => return Err(e),
+                }
+
+                node = AbstructSyntaxTreeNode::new(
+                    AbstructSyntaxTreeKind::ADD,
+                    node,
+                    rhs.clone()
+                );
+            } else if self.consume("-") {
+                let rhs: AbstructSyntaxTreeNodePointer;
+                match self.mul() {
+                    Ok(x) => rhs = x,
+                    Err(e) => return Err(e),
+                }
+
+                node = AbstructSyntaxTreeNode::new(
+                    AbstructSyntaxTreeKind::SUB,
+                    node,
+                    rhs.clone()
+                );
+            } else {
+                return Ok(node);
+            }
+        }
+    }
+
+    fn mul(&mut self) -> Result<AbstructSyntaxTreeNodePointer, InterpreterError> {
+        let mut node: AbstructSyntaxTreeNodePointer;
+        match self.primary() {
+            Ok(x) => node = x,
+            Err(e) => return Err(e),
+        }
+
+        loop {
+            if self.consume("*") {
+                let rhs: AbstructSyntaxTreeNodePointer;
+                match self.primary() {
+                    Ok(x) => rhs = x,
+                    Err(e) => return Err(e),
+                }
+
+                node = AbstructSyntaxTreeNode::new(
+                    AbstructSyntaxTreeKind::MUL,
+                    node.clone(),
+                    rhs.clone()
+                );
+            } else if self.consume("/") {
+                let rhs: AbstructSyntaxTreeNodePointer;
+                match self.primary() {
+                    Ok(x) => rhs = x,
+                    Err(e) => return Err(e),
+                }
+
+                node = AbstructSyntaxTreeNode::new(
+                    AbstructSyntaxTreeKind::DIV,
+                    node.clone(),
+                    rhs.clone()
+                );
+            } else {
+                return Ok(node);
+            }
+        }
+    }
+
+    fn primary(&mut self) -> Result<AbstructSyntaxTreeNodePointer, InterpreterError> {
+        // 次のトークンが "(" なら、 "(" expr ")" のはず
+        if self.consume("(") {
+            let node = self.expr();
+            match self.expect(")") {
+                Ok(()) => {
+                    match node {
+                        Ok(n) => Ok(n),
+                        Err(e) => Err(e),
+                    }
+                },
+                Err(e) => Err(e),
+            }
+        } else {
+            // そうでなければ数値のはず
+            match self.expect_number() {
+                Ok(x) => Ok(AbstructSyntaxTreeNode::num(x)),
+                Err(e) => Err(e),
+            }
+        }
+    }
+
+    fn calc(&mut self, node: &AbstructSyntaxTreeNodePointer) -> Result<i32, InterpreterError> {
+        {
+            // 終端ノードであれば値を返して再帰から復帰していく
+            let n = node.borrow();
+            if let AbstructSyntaxTreeKind::NUM(x) = n.0 {
+                self.stack.push(x);
+                return Ok(x);
+            }
+        }
+
+        {
+            // 左右の枝を計算する
+            let n = node.borrow();
+            let mut iter = n.1.iter();
+
+            // 左辺の抽象構文木の計算
+            if let Some(x) = iter.next() {
+                if let Err(e) = self.calc(x) {
+                    return Err(e);
+                }
+            }
+
+            // 右辺の抽象構文木の計算
+            if let Some(x) = iter.next() {
+                if let Err(e) = self.calc(x) {
+                    return Err(e);
+                }
+            }
+        }
+
+        {
+            // 演算子だった場合スタックの内容を使い計算を行う
+            let n = node.borrow();
+            match &n.0 {
+                AbstructSyntaxTreeKind::ADD => {
+                    let a: i32;
+                    let b: i32;
+
+                    match self.stack.pop() {
+                        Some(x) => a = x,
+                        None => return Err(InterpreterError::ZeroStack),
+                    }
+                    match self.stack.pop() {
+                        Some(x) => b = x,
+                        None => return Err(InterpreterError::ZeroStack),
+                    }
+
+                    let x = b + a;
+                    self.stack.push(x);
+                },
+                AbstructSyntaxTreeKind::SUB => {
+                    let a: i32;
+                    let b: i32;
+
+                    match self.stack.pop() {
+                        Some(x) => a = x,
+                        None => return Err(InterpreterError::ZeroStack),
+                    }
+                    match self.stack.pop() {
+                        Some(x) => b = x,
+                        None => return Err(InterpreterError::ZeroStack),
+                    }
+
+                    let x = b - a;
+                    self.stack.push(x);
+                },
+                AbstructSyntaxTreeKind::MUL => {
+                    let a: i32;
+                    let b: i32;
+
+                    match self.stack.pop() {
+                        Some(x) => a = x,
+                        None => return Err(InterpreterError::ZeroStack),
+                    }
+                    match self.stack.pop() {
+                        Some(x) => b = x,
+                        None => return Err(InterpreterError::ZeroStack),
+                    }
+
+                    let x = b * a;
+                    self.stack.push(x);
+                },
+                AbstructSyntaxTreeKind::DIV => {
+                    let a: i32;
+                    let b: i32;
+
+                    match self.stack.pop() {
+                        Some(x) => a = x,
+                        None => return Err(InterpreterError::ZeroStack),
+                    }
+                    match self.stack.pop() {
+                        Some(x) => b = x,
+                        None => return Err(InterpreterError::ZeroStack),
+                    }
+
+                    let x = b / a;
+                    self.stack.push(x);
+                },
+                _otherwise => { return Err(InterpreterError::CalculationError) },
+            }
+        }
+
+        // スタックの一番上の情報を返却し終了する
+        match self.stack.last() {
+            Some(x) => Ok(*x),
+            None => Err(InterpreterError::ZeroStack)
+        }
+    }
+
+    pub fn interpret(&mut self, s: &str) -> InterpreterResult {
         // トークナイズする
         self.code = s.to_string();
         match self.tokenize(s) {
@@ -241,35 +488,18 @@ impl<T: LoggerRepository> Interpreter<T> {
             Err(e) => return Err(e),
         }
 
-        // 式の最初は数でなければならないので、それをチェックして
-        // 最初の計算を行う
-        match self.expect_number() {
-            Ok(x) => stack = stack + x,
+        // 抽象構文木を作成する
+        let ast: AbstructSyntaxTreeNodePointer;
+        match self.expr() {
+            Ok(x) => ast = x,
             Err(e) => return Err(e),
         }
 
-        // `+ <数>` あるいは `- <数>` というトークンの並びを消費しつつ
-        // 計算を行う
-        while !self.at_eof() {
-            if self.consume("+") {
-                match self.expect_number() {
-                    Ok(x) => stack = stack + x,
-                    Err(e) => return Err(e),
-                }
-            }
-
-            match self.expect("-") {
-                Ok(()) => {
-                    match self.expect_number() {
-                        Ok(x) => stack = stack - x,
-                        Err(e) => return Err(e),
-                    }
-                },
-                Err(e) => return Err(e),
-            }
+        // 抽象構文木を降りながら演算を行う
+        match self.calc(&ast) {
+            Ok(x) => Ok(Some(format!("{}", x))),
+            Err(e) => Err(e),
         }
-    
-        Ok(Some(format!("{}", stack)))
     }
 }
 
@@ -294,6 +524,7 @@ mod tests {
         assert_eq!(x.interpret("5 - 3"), Ok(Some("2".to_string())));
         assert_eq!(x.interpret("5 - 3 a"), Err(InterpreterError::Untokenized));
         assert_eq!(x.interpret("2--"), Err(InterpreterError::Unexpected));
+        // assert_eq!(x.interpret("1 2"), Err(InterpreterError::Unexpected));
         assert_eq!(x.interpret("1 2"), Err(InterpreterError::Unexpected));
     }
 }
