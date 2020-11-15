@@ -1,7 +1,7 @@
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
-use super::machine::Machine;
+use super::machine::{Machine, MachineError};
 use super::ast::{AbstructSyntaxTreeKind, AbstructSyntaxTreeNodePointer};
-use super::interpreter::InterpreterError;
+
 
 #[derive(Debug)]
 pub struct StackMachine<T>
@@ -34,7 +34,7 @@ impl<T: LoggerRepository + Clone> StackMachine<T> {
 }
 
 impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
-    fn execute(&mut self, node: &AbstructSyntaxTreeNodePointer) -> Result<i32, InterpreterError> {
+    fn execute(&mut self, node: &AbstructSyntaxTreeNodePointer) -> Result<i32, MachineError> {
         {
             // 終端ノードであれば値を返して再帰から復帰していく
             let n = node.borrow();
@@ -74,11 +74,11 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
 
                     match self.stack.pop() {
                         Some(x) => a = x,
-                        None => return Err(InterpreterError::ZeroStack),
+                        None => return Err(MachineError::ZeroStack),
                     }
                     match self.stack.pop() {
                         Some(x) => b = x,
-                        None => return Err(InterpreterError::ZeroStack),
+                        None => return Err(MachineError::ZeroStack),
                     }
 
                     let x = b + a;
@@ -90,11 +90,11 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
 
                     match self.stack.pop() {
                         Some(x) => a = x,
-                        None => return Err(InterpreterError::ZeroStack),
+                        None => return Err(MachineError::ZeroStack),
                     }
                     match self.stack.pop() {
                         Some(x) => b = x,
-                        None => return Err(InterpreterError::ZeroStack),
+                        None => return Err(MachineError::ZeroStack),
                     }
 
                     let x = b - a;
@@ -106,11 +106,11 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
 
                     match self.stack.pop() {
                         Some(x) => a = x,
-                        None => return Err(InterpreterError::ZeroStack),
+                        None => return Err(MachineError::ZeroStack),
                     }
                     match self.stack.pop() {
                         Some(x) => b = x,
-                        None => return Err(InterpreterError::ZeroStack),
+                        None => return Err(MachineError::ZeroStack),
                     }
 
                     let x = b * a;
@@ -122,24 +122,24 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
 
                     match self.stack.pop() {
                         Some(x) => a = x,
-                        None => return Err(InterpreterError::ZeroStack),
+                        None => return Err(MachineError::ZeroStack),
                     }
                     match self.stack.pop() {
                         Some(x) => b = x,
-                        None => return Err(InterpreterError::ZeroStack),
+                        None => return Err(MachineError::ZeroStack),
                     }
 
                     let x = b / a;
                     self.stack.push(x);
                 },
-                _otherwise => { return Err(InterpreterError::CalculationError) },
+                _otherwise => { return Err(MachineError::CalculationError) },
             }
         }
 
         // スタックの一番上の情報を返却し終了する
         match self.stack.last() {
             Some(x) => Ok(*x),
-            None => Err(InterpreterError::ZeroStack)
+            None => Err(MachineError::ZeroStack)
         }
     }
 }
