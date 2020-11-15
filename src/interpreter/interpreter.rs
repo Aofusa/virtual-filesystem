@@ -66,9 +66,125 @@ impl TokenNode {
         self.connect(tok.clone());
         tok
     }
+}
+
+
+pub struct Interpreter<T>
+where
+    T: LoggerRepository
+{
+    token: TokenNodePointer,  // 現在着目しているトークン
+    code: String,  // 入力プログラム
+    logger: LoggerInteractor<T>,  // ログ出力する関数
+}
+
+
+impl Interpreter<DefaultLoggerRepository> {
+    #[allow(dead_code)]
+    pub fn init() -> Interpreter<DefaultLoggerRepository> {
+        Interpreter::init_with_logger(DefaultLoggerRepository{})
+    }
+}
+
+
+impl<T: LoggerRepository> Interpreter<T> {
+    fn new(token: TokenNodePointer, logger: T) -> Interpreter<T> {
+        Interpreter {
+            token: token,
+            code: String::new(),
+            logger: LoggerInteractor::new(logger),
+        }
+    }
+
+    pub fn init_with_logger(logger: T) -> Interpreter<T> {
+        Interpreter::new(
+            Rc::new(
+                RefCell::new(
+                    Node(
+                        TokenKind::EOF,
+                        vec![],
+                    )
+                )
+            ),
+            logger
+        )
+    }
+
+    // エラー箇所を報告する
+    fn error_at(&self, loc: &str, s: &str) {
+        let pos =  self.code.len() - loc.len();
+        self.logger.print(&format!("{}", self.code));
+        self.logger.print(&format!("{}^ ", " ".repeat(pos)));
+        self.logger.print(&format!("{}", s));
+    }
+
+    // 次のトークンが期待している記号のときには、トークンを1つ読み進めて
+    // 真を返す。それ以外の場合には偽を返す。
+    fn consume(&mut self, op: &str) -> bool {
+        let t = self.token.clone();
+        let p = &t.borrow().0;
+        match p {
+            TokenKind::RESERVED(x) if x == op => {
+                self.token = t.borrow().next();
+                true
+            },
+            _ => false,
+        }
+    }
+
+    // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
+    // それ以外の場合にはエラーを報告する。
+    fn expect(&mut self, op: &str) ->Result<(), InterpreterError> {
+        let t = self.token.clone();
+        let p = &t.borrow().0;
+        match p {
+            TokenKind::RESERVED(x) if x == op => {
+                self.token = t.borrow().next();
+                Ok(())
+            },
+            TokenKind::NUM(x) => { 
+                self.error_at(&x.to_string(), "記号ではありません");
+                Err(InterpreterError::Unexpected)
+            },
+            _ => {
+                self.logger.print(&format!("'{}' ではありません", op));
+                Err(InterpreterError::Unexpected)
+            },
+        }
+    }
+
+    // 次のトークンが数値の場合、トークンを1つ読み進めてその数値を返す。
+    // それ以外の場合にはエラーを報告する。
+    fn expect_number(&mut self) -> Result<i32, InterpreterError> {
+        let t = self.token.clone();
+        let p = &t.borrow().0;
+        match p {
+            TokenKind::NUM(x) => { 
+                self.token = t.borrow().next();
+                Ok(*x)
+            },
+            TokenKind::RESERVED(x) => { 
+                self.error_at(x, "数ではありません");
+                Err(InterpreterError::Unexpected)
+            },
+            _ => {
+                self.logger.print("数ではありません");
+                Err(InterpreterError::Unexpected)
+            },
+        }
+    }
+
+    fn at_eof(&self) -> bool {
+        let t = &self.token;
+        let p = &t.borrow().0;
+        match p {
+            TokenKind::EOF => true,
+            _ => false,
+        }
+    }
 
     // 入力文字列pをトークナイズしてそれを返す
-    fn tokenize(code: &str) -> Result<TokenNodePointer, InterpreterError> {
+    fn tokenize(&self, code: &str) -> Result<TokenNodePointer, InterpreterError> {
         let head = Rc::new(
             RefCell::new(
                 Node(TokenKind::EOF, vec![])
@@ -105,6 +221,7 @@ impl TokenNode {
                 continue
             }
 
+            self.error_at(&p.to_string(), "トークナイズできません");
             return Err(InterpreterError::Untokenized);
         };
 
@@ -113,110 +230,13 @@ impl TokenNode {
         let ret = head.borrow();
         Ok(ret.next())
     }
-}
-
-
-pub struct Interpreter<T>
-where
-    T: LoggerRepository
-{
-    token: TokenNodePointer,  // 現在着目しているトークン
-    logger: LoggerInteractor<T>, // ログ出力する関数
-}
-
-
-impl Interpreter<DefaultLoggerRepository> {
-    #[allow(dead_code)]
-    pub fn init() -> Interpreter<DefaultLoggerRepository> {
-        Interpreter::init_with_logger(DefaultLoggerRepository{})
-    }
-}
-
-
-impl<T: LoggerRepository> Interpreter<T> {
-    fn new(token: TokenNodePointer, logger: T) -> Interpreter<T> {
-        Interpreter {
-            token: token,
-            logger: LoggerInteractor::new(logger),
-        }
-    }
-
-    pub fn init_with_logger(logger: T) -> Interpreter<T> {
-        Interpreter::new(
-            Rc::new(
-                RefCell::new(
-                    Node(
-                        TokenKind::EOF,
-                        vec![],
-                    )
-                )
-            ),
-            logger
-        )
-    }
-
-    // 次のトークンが期待している記号のときには、トークンを1つ読み進めて
-    // 真を返す。それ以外の場合には偽を返す。
-    fn consume(&mut self, op: &str) -> bool {
-        let t = self.token.clone();
-        let p = &t.borrow().0;
-        match p {
-            TokenKind::RESERVED(x) if x == op => {
-                self.token = t.borrow().next();
-                true
-            },
-            _ => false,
-        }
-    }
-
-    // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
-    // それ以外の場合にはエラーを報告する。
-    fn expect(&mut self, op: &str) ->Result<(), InterpreterError> {
-        let t = self.token.clone();
-        let p = &t.borrow().0;
-        match p {
-            TokenKind::RESERVED(x) if x == op => {
-                self.token = t.borrow().next();
-                Ok(())
-            },
-            _ => {
-                self.logger.print(&format!("INTERPRETER ERROR: '{}' ではありません", op));
-                Err(InterpreterError::Unexpected)
-            },
-        }
-    }
-
-    // 次のトークンが数値の場合、トークンを1つ読み進めてその数値を返す。
-    // それ以外の場合にはエラーを報告する。
-    fn expect_number(&mut self) -> Result<i32, InterpreterError> {
-        let t = self.token.clone();
-        let p = &t.borrow().0;
-        match p {
-            TokenKind::NUM(x) => { 
-                self.token = t.borrow().next();
-                Ok(*x)
-            },
-            _ => {
-                self.logger.print("INTERPRETER ERROR: 数ではありません");
-                Err(InterpreterError::Unexpected)
-            },
-        }
-    }
-
-    fn at_eof(&self) -> bool {
-        let t = &self.token;
-        let p = &t.borrow().0;
-        match p {
-            TokenKind::EOF => true,
-            _ => false,
-        }
-    }
 
     pub fn interpret(&mut self, s: &str) -> InterpreterResult {
         let mut stack = 0;
 
         // トークナイズする
-        match TokenNode::tokenize(s) {
+        self.code = s.to_string();
+        match self.tokenize(s) {
             Ok(x) => self.token = x,
             Err(e) => return Err(e),
         }
@@ -256,14 +276,25 @@ impl<T: LoggerRepository> Interpreter<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::interpreter::interpreter::Interpreter;
+    use crate::interpreter::interpreter::{Interpreter, InterpreterError};
+    use crate::utils::logger::{LoggerRepository};
+
+    pub struct PrintLoggerRepository {}
+    impl LoggerRepository for PrintLoggerRepository {
+        fn print(&self, message: &str) {
+            println!("{}", message);
+        }
+    }
 
     #[test]
     fn test_interpreter() {
-        let mut x = Interpreter::init();
+        let mut x = Interpreter::init_with_logger(PrintLoggerRepository{});
         assert_eq!(x.interpret("42"), Ok(Some("42".to_string())));
         assert_eq!(x.interpret("5+20-4"), Ok(Some("21".to_string())));
         assert_eq!(x.interpret("5 - 3"), Ok(Some("2".to_string())));
+        assert_eq!(x.interpret("5 - 3 a"), Err(InterpreterError::Untokenized));
+        assert_eq!(x.interpret("2--"), Err(InterpreterError::Unexpected));
+        assert_eq!(x.interpret("1 2"), Err(InterpreterError::Unexpected));
     }
 }
 
