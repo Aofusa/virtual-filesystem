@@ -4,3 +4,4 @@ pub mod ast;
 pub mod machine;
 pub mod stackmachine;
 pub mod common;
+pub mod operator;

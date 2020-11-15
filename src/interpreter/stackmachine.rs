@@ -1,9 +1,9 @@
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
 use super::machine::{Machine, MachineError};
 use super::ast::{AbstractSyntaxTreeKind, AbstractSyntaxTreeNodePointer};
+use super::operator::{add, sub, mul, div};
 
 
-#[derive(Debug)]
 pub struct StackMachine<T>
 where
     T: LoggerRepository + Clone
@@ -68,71 +68,14 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
             // 演算子だった場合スタックの内容を使い計算を行う
             let n = node.borrow();
             match &n.0 {
-                AbstractSyntaxTreeKind::ADD => {
-                    let a: i32;
-                    let b: i32;
-
-                    match self.stack.pop() {
-                        Some(x) => a = x,
-                        None => return Err(MachineError::ZeroStack),
-                    }
-                    match self.stack.pop() {
-                        Some(x) => b = x,
-                        None => return Err(MachineError::ZeroStack),
-                    }
-
-                    let x = b + a;
-                    self.stack.push(x);
+                AbstractSyntaxTreeKind::ADD => { if let Err(e) = add(&mut self.stack) { return Err(e) } },
+                AbstractSyntaxTreeKind::SUB => {  if let Err(e) = sub(&mut self.stack) { return Err(e) } },
+                AbstractSyntaxTreeKind::MUL => {  if let Err(e) = mul(&mut self.stack) { return Err(e) } },
+                AbstractSyntaxTreeKind::DIV => {  if let Err(e) = div(&mut self.stack) { return Err(e) } },
+                _otherwise => {
+                    self.logger.print("unreachable here");
+                    return Err(MachineError::CalculationError)
                 },
-                AbstractSyntaxTreeKind::SUB => {
-                    let a: i32;
-                    let b: i32;
-
-                    match self.stack.pop() {
-                        Some(x) => a = x,
-                        None => return Err(MachineError::ZeroStack),
-                    }
-                    match self.stack.pop() {
-                        Some(x) => b = x,
-                        None => return Err(MachineError::ZeroStack),
-                    }
-
-                    let x = b - a;
-                    self.stack.push(x);
-                },
-                AbstractSyntaxTreeKind::MUL => {
-                    let a: i32;
-                    let b: i32;
-
-                    match self.stack.pop() {
-                        Some(x) => a = x,
-                        None => return Err(MachineError::ZeroStack),
-                    }
-                    match self.stack.pop() {
-                        Some(x) => b = x,
-                        None => return Err(MachineError::ZeroStack),
-                    }
-
-                    let x = b * a;
-                    self.stack.push(x);
-                },
-                AbstractSyntaxTreeKind::DIV => {
-                    let a: i32;
-                    let b: i32;
-
-                    match self.stack.pop() {
-                        Some(x) => a = x,
-                        None => return Err(MachineError::ZeroStack),
-                    }
-                    match self.stack.pop() {
-                        Some(x) => b = x,
-                        None => return Err(MachineError::ZeroStack),
-                    }
-
-                    let x = b / a;
-                    self.stack.push(x);
-                },
-                _otherwise => { return Err(MachineError::CalculationError) },
             }
         }
 
