@@ -1,6 +1,6 @@
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
 use super::machine::{Machine, MachineError};
-use super::ast::{AbstructSyntaxTreeKind, AbstructSyntaxTreeNodePointer};
+use super::ast::{AbstractSyntaxTreeKind, AbstractSyntaxTreeNodePointer};
 
 
 #[derive(Debug)]
@@ -34,11 +34,11 @@ impl<T: LoggerRepository + Clone> StackMachine<T> {
 }
 
 impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
-    fn execute(&mut self, node: &AbstructSyntaxTreeNodePointer) -> Result<i32, MachineError> {
+    fn execute(&mut self, node: &AbstractSyntaxTreeNodePointer) -> Result<i32, MachineError> {
         {
             // 終端ノードであれば値を返して再帰から復帰していく
             let n = node.borrow();
-            if let AbstructSyntaxTreeKind::NUM(x) = n.0 {
+            if let AbstractSyntaxTreeKind::NUM(x) = n.0 {
                 self.stack.push(x);
                 return Ok(x);
             }
@@ -68,7 +68,7 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
             // 演算子だった場合スタックの内容を使い計算を行う
             let n = node.borrow();
             match &n.0 {
-                AbstructSyntaxTreeKind::ADD => {
+                AbstractSyntaxTreeKind::ADD => {
                     let a: i32;
                     let b: i32;
 
@@ -84,7 +84,7 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
                     let x = b + a;
                     self.stack.push(x);
                 },
-                AbstructSyntaxTreeKind::SUB => {
+                AbstractSyntaxTreeKind::SUB => {
                     let a: i32;
                     let b: i32;
 
@@ -100,7 +100,7 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
                     let x = b - a;
                     self.stack.push(x);
                 },
-                AbstructSyntaxTreeKind::MUL => {
+                AbstractSyntaxTreeKind::MUL => {
                     let a: i32;
                     let b: i32;
 
@@ -116,7 +116,7 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
                     let x = b * a;
                     self.stack.push(x);
                 },
-                AbstructSyntaxTreeKind::DIV => {
+                AbstractSyntaxTreeKind::DIV => {
                     let a: i32;
                     let b: i32;
 

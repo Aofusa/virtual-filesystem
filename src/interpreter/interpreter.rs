@@ -1,6 +1,6 @@
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
 use super::token::{Tokenizer, TokenizerError};
-use super::ast::{AstBuilder, AbstructSyntaxTreeNodePointer, AstBuilderError};
+use super::ast::{AstBuilder, AbstractSyntaxTreeNodePointer, AstBuilderError};
 use super::stackmachine::StackMachine;
 use super::machine::{Machine, MachineError};
 
@@ -51,7 +51,7 @@ impl<T: LoggerRepository + Clone> Interpreter<T> {
 
         // 抽象構文木を作成する
         let mut ast = AstBuilder::init_with_logger(tokenizer, self.logger.get());
-        let ast_pointer: AbstructSyntaxTreeNodePointer;
+        let ast_pointer: AbstractSyntaxTreeNodePointer;
         match ast.build() {
             Ok(x) => ast_pointer = x,
             Err(e) => return Err(InterpreterError::FailBuildAst(e)),

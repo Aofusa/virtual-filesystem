@@ -13,7 +13,7 @@ pub enum AstBuilderError {
 
 
 #[derive(Debug)]
-pub enum AbstructSyntaxTreeKind {
+pub enum AbstractSyntaxTreeKind {
     ADD,  // +
     SUB,  // -
     MUL,  // *
@@ -22,8 +22,8 @@ pub enum AbstructSyntaxTreeKind {
 }
 
 
-pub type AbstructSyntaxTreeNode = Node<AbstructSyntaxTreeKind>;
-pub type AbstructSyntaxTreeNodePointer = NodePointer<AbstructSyntaxTreeKind>;
+pub type AbstractSyntaxTreeNode = Node<AbstractSyntaxTreeKind>;
+pub type AbstractSyntaxTreeNodePointer = NodePointer<AbstractSyntaxTreeKind>;
 
 
 #[derive(Debug)]
@@ -44,8 +44,8 @@ impl AstBuilder<DefaultLoggerRepository> {
 }
 
 
-impl AbstructSyntaxTreeNode {
-    fn new(kind: AbstructSyntaxTreeKind, lhs: AbstructSyntaxTreeNodePointer, rhs: AbstructSyntaxTreeNodePointer) ->AbstructSyntaxTreeNodePointer {
+impl AbstractSyntaxTreeNode {
+    fn new(kind: AbstractSyntaxTreeKind, lhs: AbstractSyntaxTreeNodePointer, rhs: AbstractSyntaxTreeNodePointer) ->AbstractSyntaxTreeNodePointer {
         Rc::new(
             RefCell::new(
                 Node(
@@ -56,11 +56,11 @@ impl AbstructSyntaxTreeNode {
         )
     }
 
-    fn num(value: i32) -> AbstructSyntaxTreeNodePointer {
+    fn num(value: i32) -> AbstractSyntaxTreeNodePointer {
         Rc::new(
             RefCell::new(
                 Node(
-                    AbstructSyntaxTreeKind::NUM( value ),
+                    AbstractSyntaxTreeKind::NUM( value ),
                     vec![],
                 )
             )
@@ -81,12 +81,12 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         AstBuilder::new(tokenizer, logger)
     }
 
-    pub fn build(&mut self) -> Result<AbstructSyntaxTreeNodePointer, AstBuilderError> {
+    pub fn build(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
         self.expr()
     }
 
-    fn expr(&mut self) -> Result<AbstructSyntaxTreeNodePointer, AstBuilderError> {
-        let mut node: AbstructSyntaxTreeNodePointer;
+    fn expr(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
+        let mut node: AbstractSyntaxTreeNodePointer;
         match self.mul() {
             Ok(x) => node = x,
             Err(e) => return Err(e),
@@ -94,26 +94,26 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
 
         loop {
             if self.tokenizer.consume("+") {
-                let rhs: AbstructSyntaxTreeNodePointer;
+                let rhs: AbstractSyntaxTreeNodePointer;
                 match self.mul() {
                     Ok(x) => rhs = x,
                     Err(e) => return Err(e),
                 }
 
-                node = AbstructSyntaxTreeNode::new(
-                    AbstructSyntaxTreeKind::ADD,
+                node = AbstractSyntaxTreeNode::new(
+                    AbstractSyntaxTreeKind::ADD,
                     node,
                     rhs.clone()
                 );
             } else if self.tokenizer.consume("-") {
-                let rhs: AbstructSyntaxTreeNodePointer;
+                let rhs: AbstractSyntaxTreeNodePointer;
                 match self.mul() {
                     Ok(x) => rhs = x,
                     Err(e) => return Err(e),
                 }
 
-                node = AbstructSyntaxTreeNode::new(
-                    AbstructSyntaxTreeKind::SUB,
+                node = AbstractSyntaxTreeNode::new(
+                    AbstractSyntaxTreeKind::SUB,
                     node,
                     rhs.clone()
                 );
@@ -123,8 +123,8 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         }
     }
 
-    fn mul(&mut self) -> Result<AbstructSyntaxTreeNodePointer, AstBuilderError> {
-        let mut node: AbstructSyntaxTreeNodePointer;
+    fn mul(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
+        let mut node: AbstractSyntaxTreeNodePointer;
         match self.unary() {
             Ok(x) => node = x,
             Err(e) => return Err(e),
@@ -132,26 +132,26 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
 
         loop {
             if self.tokenizer.consume("*") {
-                let rhs: AbstructSyntaxTreeNodePointer;
+                let rhs: AbstractSyntaxTreeNodePointer;
                 match self.unary() {
                     Ok(x) => rhs = x,
                     Err(e) => return Err(e),
                 }
 
-                node = AbstructSyntaxTreeNode::new(
-                    AbstructSyntaxTreeKind::MUL,
+                node = AbstractSyntaxTreeNode::new(
+                    AbstractSyntaxTreeKind::MUL,
                     node.clone(),
                     rhs.clone()
                 );
             } else if self.tokenizer.consume("/") {
-                let rhs: AbstructSyntaxTreeNodePointer;
+                let rhs: AbstractSyntaxTreeNodePointer;
                 match self.unary() {
                     Ok(x) => rhs = x,
                     Err(e) => return Err(e),
                 }
 
-                node = AbstructSyntaxTreeNode::new(
-                    AbstructSyntaxTreeKind::DIV,
+                node = AbstractSyntaxTreeNode::new(
+                    AbstractSyntaxTreeKind::DIV,
                     node.clone(),
                     rhs.clone()
                 );
@@ -161,15 +161,15 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         }
     }
 
-    fn unary(&mut self) -> Result<AbstructSyntaxTreeNodePointer, AstBuilderError> {
+    fn unary(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
         if self.tokenizer.consume("+") {
             self.primary()
         } else if self.tokenizer.consume("-") {
             match self.primary() {
                 Ok(x) => Ok(
-                        AbstructSyntaxTreeNode::new(
-                            AbstructSyntaxTreeKind::SUB,
-                            AbstructSyntaxTreeNode::num(0),
+                        AbstractSyntaxTreeNode::new(
+                            AbstractSyntaxTreeKind::SUB,
+                            AbstractSyntaxTreeNode::num(0),
                             x
                         )
                     ),
@@ -180,7 +180,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         }
     }
 
-    fn primary(&mut self) -> Result<AbstructSyntaxTreeNodePointer, AstBuilderError> {
+    fn primary(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
         // 次のトークンが "(" なら、 "(" expr ")" のはず
         if self.tokenizer.consume("(") {
             let node = self.expr();
@@ -196,7 +196,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         } else {
             // そうでなければ数値のはず
             match self.tokenizer.expect_number() {
-                Ok(x) => Ok(AbstructSyntaxTreeNode::num(x)),
+                Ok(x) => Ok(AbstractSyntaxTreeNode::num(x)),
                 Err(_) => Err(AstBuilderError::SyntaxError),
             }
         }

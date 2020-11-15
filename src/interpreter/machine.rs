@@ -1,4 +1,4 @@
-use super::ast::AbstructSyntaxTreeNodePointer;
+use super::ast::AbstractSyntaxTreeNodePointer;
 
 
 #[derive(Debug, PartialEq)]
@@ -10,6 +10,6 @@ pub enum MachineError {
 
 
 pub trait Machine {
-    fn execute(&mut self, node: &AbstructSyntaxTreeNodePointer) -> Result<i32, MachineError>;
+    fn execute(&mut self, node: &AbstractSyntaxTreeNodePointer) -> Result<i32, MachineError>;
 }
 
