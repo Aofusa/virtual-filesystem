@@ -22,7 +22,7 @@ pub enum CommandError {
 #[derive(Debug)]
 pub struct Shell<T>
 where
-    T: LoggerRepository,
+    T: LoggerRepository + Clone,
 {
     pub root: FileNodePointer,
     pub current: FileNodePointer,
@@ -38,7 +38,7 @@ impl Shell<DefaultLoggerRepository> {
 }
 
 
-impl<T: LoggerRepository> Shell<T> {
+impl<T: LoggerRepository + Clone> Shell<T> {
     fn new(root: FileNodePointer, current: FileNodePointer, logger: T) -> Shell<T> {
         Shell {
             root: root,
@@ -52,11 +52,6 @@ impl<T: LoggerRepository> Shell<T> {
         let current = root.clone();
         root.borrow_mut().connect(current.clone());
         Shell::new(root, current, logger)
-    }
-
-    #[allow(dead_code)]
-    pub fn replace_logger<R: LoggerRepository>(&self, logger: R) -> Shell<R> {
-        Shell::new(self.root.clone(), self.current.clone(), logger)
     }
 
     pub fn run(&mut self, buffer: &Arg) -> CommandResult {
