@@ -315,7 +315,7 @@ impl<T: LoggerRepository> Interpreter<T> {
 
     fn mul(&mut self) -> Result<AbstructSyntaxTreeNodePointer, InterpreterError> {
         let mut node: AbstructSyntaxTreeNodePointer;
-        match self.primary() {
+        match self.unary() {
             Ok(x) => node = x,
             Err(e) => return Err(e),
         }
@@ -323,7 +323,7 @@ impl<T: LoggerRepository> Interpreter<T> {
         loop {
             if self.consume("*") {
                 let rhs: AbstructSyntaxTreeNodePointer;
-                match self.primary() {
+                match self.unary() {
                     Ok(x) => rhs = x,
                     Err(e) => return Err(e),
                 }
@@ -335,7 +335,7 @@ impl<T: LoggerRepository> Interpreter<T> {
                 );
             } else if self.consume("/") {
                 let rhs: AbstructSyntaxTreeNodePointer;
-                match self.primary() {
+                match self.unary() {
                     Ok(x) => rhs = x,
                     Err(e) => return Err(e),
                 }
@@ -348,6 +348,25 @@ impl<T: LoggerRepository> Interpreter<T> {
             } else {
                 return Ok(node);
             }
+        }
+    }
+
+    fn unary(&mut self) -> Result<AbstructSyntaxTreeNodePointer, InterpreterError> {
+        if self.consume("+") {
+            self.primary()
+        } else if self.consume("-") {
+            match self.primary() {
+                Ok(x) => Ok(
+                        AbstructSyntaxTreeNode::new(
+                            AbstructSyntaxTreeKind::SUB,
+                            AbstructSyntaxTreeNode::num(0),
+                            x
+                        )
+                    ),
+                Err(e) => Err(e),
+            }
+        } else {
+            self.primary()
         }
     }
 
@@ -530,6 +549,7 @@ mod tests {
         assert_eq!(x.interpret("5+6*7"), Ok(Some("47".to_string())));
         assert_eq!(x.interpret("5*(9-6)"), Ok(Some("15".to_string())));
         assert_eq!(x.interpret("(3+5) / 2"), Ok(Some("4".to_string())));
+        assert_eq!(x.interpret("-10+(+20)"), Ok(Some("10".to_string())));
     }
 }
 
