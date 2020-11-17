@@ -10,6 +10,8 @@ pub enum AbstractSyntaxTreeKind {
     SUB,  // -
     MUL,  // *
     DIV,  // /
+    ASSIGN,  // =
+    LOCALVARIABLE(String),  // ローカル変数
     NUM(i32),  // 整数
 }
 
@@ -24,6 +26,7 @@ where
     T: LoggerRepository + Clone
 {
     tokenizer: Tokenizer<T>,
+    code: Vec<AbstractSyntaxTreeNodePointer>,
     logger: LoggerInteractor<T>,
 }
 
@@ -44,6 +47,10 @@ impl AbstractSyntaxTreeNode {
     fn num(value: i32) -> AbstractSyntaxTreeNodePointer {
         AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::NUM(value), vec![])
     }
+
+    fn variable(value: String) -> AbstractSyntaxTreeNodePointer {
+        AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::LOCALVARIABLE(value), vec![])
+    }
 }
 
 
@@ -51,6 +58,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     fn new(tokenizer: Tokenizer<T>, logger: T) -> AstBuilder<T> {
         AstBuilder {
             tokenizer: tokenizer,
+            code: Vec::new(),
             logger: LoggerInteractor::new(logger),
         }
     }
@@ -60,10 +68,42 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     pub fn build(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
-        self.expr()
+        self.program()
+    }
+
+    fn program(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        let mut code = Vec::new();
+        while !self.tokenizer.at_eof() {
+            code.push(self.stmt()?);
+        }
+        self.code = code;
+        Ok(self.code.first().ok_or(InterpreterError::InvalidSource)?.clone())
+    }
+
+    fn stmt(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        let node = self.expr();
+        self.tokenizer.consume(";");
+        node
     }
 
     fn expr(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        self.assign()
+    }
+
+    fn assign(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        let mut node = self.add()?;
+        if self.tokenizer.consume("=") {
+            let rhs = self.assign()?;
+            node = AbstractSyntaxTreeNode::create(
+                AbstractSyntaxTreeKind::ASSIGN,
+                node,
+                rhs
+            )
+        }
+        Ok(node)
+    }
+
+    fn add(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
         let mut node = self.mul()?;
 
         loop {
@@ -115,16 +155,14 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         if self.tokenizer.consume("+") {
             self.primary()
         } else if self.tokenizer.consume("-") {
-            match self.primary() {
-                Ok(x) => Ok(
-                        AbstractSyntaxTreeNode::create(
-                            AbstractSyntaxTreeKind::SUB,
-                            AbstractSyntaxTreeNode::num(0),
-                            x
-                        )
-                    ),
-                Err(e) => Err(e),
-            }
+            let node = self.primary()?;
+            Ok(
+                AbstractSyntaxTreeNode::create(
+                    AbstractSyntaxTreeKind::SUB,
+                    AbstractSyntaxTreeNode::num(0),
+                    node
+                )
+            )
         } else {
             self.primary()
         }
@@ -134,20 +172,16 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         // 次のトークンが "(" なら、 "(" expr ")" のはず
         if self.tokenizer.consume("(") {
             let node = self.expr();
-            match self.tokenizer.expect(")") {
-                Ok(()) => {
-                    match node {
-                        Ok(n) => Ok(n),
-                        Err(_) => Err(InterpreterError::SyntaxError),
-                    }
-                },
-                Err(_) => Err(InterpreterError::SyntaxError),
-            }
+            self.tokenizer.expect(")")?;
+            node
         } else {
-            // そうでなければ数値のはず
-            match self.tokenizer.expect_number() {
-                Ok(x) => Ok(AbstractSyntaxTreeNode::num(x)),
-                Err(_) => Err(InterpreterError::SyntaxError),
+            match self.tokenizer.consume_ident() {
+                Some(t) => Ok(AbstractSyntaxTreeNode::variable(t)),
+                None => {
+                    // そうでなければ数値のはず
+                    let x = self.tokenizer.expect_number()?;
+                    Ok(AbstractSyntaxTreeNode::num(x))
+                }
             }
         }
     }

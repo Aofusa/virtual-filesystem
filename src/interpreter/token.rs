@@ -1,6 +1,6 @@
 use crate::virtual_filesystem_core::graph::{Node, NodePointer, Graph};
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
-use super::common::split_digit;
+use super::common::{split_digit, split_alphanumeric};
 use super::interpreter::InterpreterError;
 
 
@@ -8,6 +8,7 @@ use super::interpreter::InterpreterError;
 #[derive(Debug)]
 pub enum TokenKind {
     RESERVED(String),  // 記号
+    IDENT(String),  // 識別子
     NUM(i32),  // 整数トークン
     EOF,  // 入力の終わりを表すトークン
 }
@@ -92,6 +93,20 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
         }
     }
 
+    // 次のトークンが期待している変数の時には、トークンを一つ読み進めて
+    // 変数名を返す。それ以外の時には None を返す。
+    pub fn consume_ident(&mut self) -> Option<String> {
+        let t = self.token.clone();
+        let p = &t.borrow().0;
+        match p {
+            TokenKind::IDENT(v) => {
+                self.token = t.borrow().next();
+                Some(v.to_string())
+            }
+            _ => None,
+        }
+    }
+
     // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
     // それ以外の場合にはエラーを報告する。
     pub fn expect(&mut self, op: &str) ->Result<(), InterpreterError> {
@@ -102,7 +117,11 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 self.token = t.borrow().next();
                 Ok(())
             },
-            TokenKind::NUM(x) => { 
+            TokenKind::NUM(x) => {
+                self.error_at(&x.to_string(), "記号ではありません");
+                Err(InterpreterError::Unexpected)
+            },
+            TokenKind::IDENT(x) => {
                 self.error_at(&x.to_string(), "記号ではありません");
                 Err(InterpreterError::Unexpected)
             },
@@ -124,6 +143,10 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 Ok(*x)
             },
             TokenKind::RESERVED(x) => { 
+                self.error_at(x, "数ではありません");
+                Err(InterpreterError::Unexpected)
+            },
+            TokenKind::IDENT(x) => { 
                 self.error_at(x, "数ではありません");
                 Err(InterpreterError::Unexpected)
             },
@@ -154,9 +177,24 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             // 空白文字をスキップ
             if p.is_whitespace() { continue }
 
+            // 変数
+            if p == '$' {
+                let s = iter.as_str();
+                let (variable_string, _right) = split_alphanumeric(s);
+
+                let c = cur.clone();
+                cur = c.borrow_mut()
+                    .create(
+                        TokenKind::IDENT( variable_string.to_string() )
+                    );
+                continue
+            }
+
+            // 演算子など記号
             if p == '+' || p == '-' ||
                p == '*' || p == '/' ||
-               p == '(' || p == ')' {
+               p == '(' || p == ')' ||
+               p == ';' {
                 let c = cur.clone();
                 cur = c.borrow_mut()
                     .create(
