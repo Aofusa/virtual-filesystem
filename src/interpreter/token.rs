@@ -1,6 +1,6 @@
 use crate::virtual_filesystem_core::graph::{Node, NodePointer, Graph};
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
-use super::common::{split_digit, split_alphanumeric};
+use super::common::{split_digit, split_alphanumeric, split_specific};
 use super::interpreter::InterpreterError;
 
 
@@ -179,8 +179,12 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
 
             // 変数
             if p == '$' {
+                // 文字列を変数名に変換しイテレータを進める
                 let s = iter.as_str();
-                let (variable_string, _right) = split_alphanumeric(s);
+                let exclusion = "=+-*/!@#$%^&¥|`~/.,:;'\"<>()[]{}";  // 変数名に使用できないリスト
+                let (san, _right) = split_alphanumeric(s);
+                let (variable_string, _right) = split_specific(san, exclusion);
+                for _ in 0..variable_string.len() { iter.next(); }
 
                 let c = cur.clone();
                 cur = c.borrow_mut()
@@ -194,7 +198,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             if p == '+' || p == '-' ||
                p == '*' || p == '/' ||
                p == '(' || p == ')' ||
-               p == ';' {
+               p == '=' || p == ';' {
                 let c = cur.clone();
                 cur = c.borrow_mut()
                     .create(
