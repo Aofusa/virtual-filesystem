@@ -1,5 +1,5 @@
 use virtual_filesystem::virtual_filesystem::command::pwd;
-use virtual_filesystem::virtual_filesystem::shell::{CommandError, Buffer, Shell};
+use virtual_filesystem::shell::shell::{CommandError, Buffer, Shell};
 use virtual_filesystem::utils::logger::LoggerRepository;
 
 

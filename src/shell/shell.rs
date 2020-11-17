@@ -185,7 +185,7 @@ impl<T: LoggerRepository + Clone> Shell<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::virtual_filesystem::shell::{CommandError, Shell};
+    use crate::shell::shell::{CommandError, Shell};
 
     #[test]
     fn test_enter() {
