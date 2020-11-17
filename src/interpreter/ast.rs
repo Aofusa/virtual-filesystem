@@ -82,7 +82,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
 
     fn stmt(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
         let node = self.expr();
-        self.tokenizer.consume(";");
+        loop { if !self.tokenizer.consume(";") { break } }
         node
     }
 

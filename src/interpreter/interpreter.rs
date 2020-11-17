@@ -95,6 +95,7 @@ mod tests {
         assert_eq!(x.interpret("$a=-10+(+20)"), Ok(Some("10".to_string())));
         assert_eq!(x.interpret("$a=$b * $a"), Err(InterpreterError::UndefinedVariable));
         assert_eq!(x.interpret("$absc = 100"), Ok(Some("100".to_string())));
+        assert_eq!(x.interpret("$absc = 100; 2 * $absc;;;"), Ok(Some("100".to_string())));
     }
 }
 
