@@ -2,7 +2,7 @@ use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepo
 use super::token::Tokenizer;
 use super::ast::AstBuilder;
 use super::stackmachine::StackMachine;
-use super::machine::Machine;
+use super::machine::{Machine, Literal};
 
 
 pub type InterpreterResult = Result<Option<String>, InterpreterError>;
@@ -21,6 +21,7 @@ pub enum InterpreterError {
     UndefinedVariable,  // 未定義変数
     InvalidLVariable,  // 左辺値が変数ではない
     InvalidRValue,  // 右辺値が不正な形式
+    TypeMismatch,  // 型が不一致
 }
 
 
@@ -62,7 +63,7 @@ impl<T: LoggerRepository + Clone> Interpreter<T> {
 
         // 抽象構文木を降りながら演算を行う
         let mut machine = StackMachine::init_with_logger(self.logger.get());
-        let res = programs.iter().try_fold(0, |_acc, x| machine.execute(x))?;
+        let res = programs.iter().try_fold(Literal::NUM(0), |_acc, x| machine.execute(x))?;
         Ok(Some(format!("{}", res)))
     }
 }

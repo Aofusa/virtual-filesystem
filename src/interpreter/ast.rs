@@ -13,6 +13,7 @@ pub enum AbstractSyntaxTreeKind {
     ASSIGN,  // =
     LOCALVARIABLE(String),  // ローカル変数
     NUM(i32),  // 整数
+    STRING(String),  // 文字列
     RETURN,  // return ステートメント
 }
 
@@ -47,6 +48,10 @@ impl AbstractSyntaxTreeNode {
 
     fn num(value: i32) -> AbstractSyntaxTreeNodePointer {
         AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::NUM(value), vec![])
+    }
+
+    fn string(value: String) -> AbstractSyntaxTreeNodePointer {
+        AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::STRING(value), vec![])
     }
 
     fn variable(value: String) -> AbstractSyntaxTreeNodePointer {
@@ -184,12 +189,32 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
             self.tokenizer.expect(")")?;
             node
         } else {
+            // もしかしたら変数かもしれない
             match self.tokenizer.consume_ident() {
                 Some(t) => Ok(AbstractSyntaxTreeNode::variable(t)),
                 None => {
-                    // そうでなければ数値のはず
-                    let x = self.tokenizer.expect_number()?;
-                    Ok(AbstractSyntaxTreeNode::num(x))
+                    // もしかしたら文字列かもしれない
+                    match self.tokenizer.consume_strings() {
+                        Some(s) => {
+                            if self.tokenizer.consume("\"") {
+                                let node = AbstractSyntaxTreeNode::string(s);
+                                self.tokenizer.expect("\"")?;
+                                Ok(node)
+                            } else if self.tokenizer.consume("'") {
+                                let node = AbstractSyntaxTreeNode::string(s);
+                                self.tokenizer.expect("'")?;
+                                Ok(node)
+                            } else {
+                                let node = AbstractSyntaxTreeNode::string(s);
+                                Ok(node)
+                            }
+                        },
+                        None => {
+                            // そうでなければ数値のはず
+                            let x = self.tokenizer.expect_number()?;
+                            Ok(AbstractSyntaxTreeNode::num(x))
+                        }
+                    }
                 }
             }
         }

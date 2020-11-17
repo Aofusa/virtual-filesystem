@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
-use super::machine::Machine;
+use super::machine::{Machine, Literal};
 use super::ast::{AbstractSyntaxTreeKind, AbstractSyntaxTreeNodePointer};
 use super::operator::{add, sub, mul, div};
 use super::interpreter::InterpreterError;
@@ -10,9 +10,9 @@ pub struct StackMachine<T>
 where
     T: LoggerRepository + Clone
 {
-    stack: Vec<i32>,  // 演算スタック
-    variables: HashMap<String, i32>,  // 変数リスト
-    command: HashMap<String, Box<dyn Fn(&mut Vec<i32>) -> Result<i32, InterpreterError>>>,
+    stack: Vec<Literal>,  // 演算スタック
+    variables: HashMap<String, Literal>,  // 変数リスト
+    command: HashMap<String, Box<dyn Fn(&mut Vec<Literal>) -> Result<Literal, InterpreterError>>>,
     logger: LoggerInteractor<T>,
 }
 
@@ -26,7 +26,7 @@ impl StackMachine<DefaultLoggerRepository> {
 
 impl<T: LoggerRepository + Clone> StackMachine<T> {
     fn new(logger: T) -> StackMachine<T> {
-        let mut c = HashMap::<String, Box<dyn Fn(&mut Vec<i32>) -> Result<i32, InterpreterError>>>::new();
+        let mut c = HashMap::<String, Box<dyn Fn(&mut Vec<Literal>) -> Result<Literal, InterpreterError>>>::new();
         c.insert("add".to_string(), Box::new(add));
         c.insert("sub".to_string(), Box::new(sub));
         c.insert("mul".to_string(), Box::new(mul));
@@ -46,14 +46,18 @@ impl<T: LoggerRepository + Clone> StackMachine<T> {
 }
 
 impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
-    fn execute(&mut self, node: &AbstractSyntaxTreeNodePointer) -> Result<i32, InterpreterError> {
+    fn execute(&mut self, node: &AbstractSyntaxTreeNodePointer) -> Result<Literal, InterpreterError> {
         {
             // 終端ノードであれば値を返して再帰から復帰していく
             let n = node.borrow();
             match &n.0 {
                 AbstractSyntaxTreeKind::NUM(x) => {
-                    self.stack.push(*x);
-                    return Ok(*x);
+                    self.stack.push(Literal::NUM(*x));
+                    return Ok(Literal::NUM(*x));
+                },
+                AbstractSyntaxTreeKind::STRING(x) => {
+                    self.stack.push(Literal::STRING(x.to_string()));
+                    return Ok(Literal::STRING(x.to_string()));
                 },
                 AbstractSyntaxTreeKind::ASSIGN => {
                     let mut iter = n.1.iter();
@@ -62,15 +66,15 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
                     let rhs = iter.next().ok_or(InterpreterError::InvalidRValue)?;
                     if let AbstractSyntaxTreeKind::LOCALVARIABLE(vname) = lhs_kind {
                         let vdata = self.execute(rhs)?;
-                        self.variables.insert(vname.to_string(), vdata);
+                        self.variables.insert(vname.to_string(), vdata.clone());
                         return Ok(vdata);
                     }
                     return Err(InterpreterError::InvalidLVariable);
                 },
                 AbstractSyntaxTreeKind::LOCALVARIABLE(x) => {
                     let v = self.variables.get(x).ok_or(InterpreterError::UndefinedVariable)?;
-                    self.stack.push(*v);
-                    return Ok(*v);
+                    self.stack.push(v.clone());
+                    return Ok(v.clone());
                 },
                 AbstractSyntaxTreeKind::RETURN => {
                     let mut iter = n.1.iter();
@@ -126,7 +130,7 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
         }
 
         // スタックの一番上の情報を返却し終了する
-        self.stack.last().and_then(|x| Some(*x)).ok_or(InterpreterError::ZeroStack)
+        self.stack.last().and_then(|x| Some(x.clone())).ok_or(InterpreterError::ZeroStack)
     }
 }
 

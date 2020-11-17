@@ -10,6 +10,7 @@ pub enum TokenKind {
     RESERVED(String),  // 記号
     IDENT(String),  // 識別子
     NUM(i32),  // 整数トークン
+    STRING(String),  // 文字列トークン
     RETURN,  // return ステートメント
     EOF,  // 入力の終わりを表すトークン
 }
@@ -108,8 +109,22 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
         }
     }
 
-    // 次のトークンが期待している変数の時には、トークンを一つ読み進めて
-    // 変数名を返す。それ以外の時には None を返す。
+    // 次のトークンが文字列の場合、トークンを1つ読み進めてその文字列を返す。
+    // それ以外の場合には None を返する。
+    pub fn consume_strings(&mut self) -> Option<String> {
+        let t = self.token.clone();
+        let p = &t.borrow().0;
+        match p {
+            TokenKind::STRING(x) => { 
+                self.token = t.borrow().next();
+                Some(x.to_string())
+            }
+            _ => None,
+        }
+    }
+
+    // 次のトークンが期待しているステートメントの時には、トークンを一つ読み進めて
+    // 真を返す。それ以外の場合には偽を返す。
     pub fn consume_return(&mut self) -> bool {
         let t = self.token.clone();
         let p = &t.borrow().0;
@@ -131,6 +146,10 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             TokenKind::RESERVED(x) if x == op => {
                 self.token = t.borrow().next();
                 Ok(())
+            },
+            TokenKind::STRING(x) => { 
+                self.error_at(x, "記号ではありません");
+                Err(InterpreterError::Unexpected)
             },
             TokenKind::NUM(x) => {
                 self.error_at(&x.to_string(), "記号ではありません");
@@ -156,6 +175,10 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             TokenKind::NUM(x) => { 
                 self.token = t.borrow().next();
                 Ok(*x)
+            },
+            TokenKind::STRING(x) => { 
+                self.error_at(x, "数ではありません");
+                Err(InterpreterError::Unexpected)
             },
             TokenKind::RESERVED(x) => { 
                 self.error_at(x, "数ではありません");
@@ -249,8 +272,48 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 continue
             }
 
-            self.error_at(&p.to_string(), "トークナイズできません");
-            return Err(InterpreterError::Untokenized);
+            // 文字列
+            {
+                if p == '\'' {
+                    let s = iter.as_str();
+                    let exclusion = "'";
+                    let (variable_string, _right) = split_specific(s, exclusion);
+                    for _ in 0..variable_string.len()+1 { iter.next(); }
+    
+                    let c = cur.clone();
+                    cur = c.borrow_mut()
+                        .create(
+                            TokenKind::STRING( variable_string.to_string() )
+                        );
+                    continue
+                }
+
+                if p == '"' {
+                    let s = iter.as_str();
+                    let exclusion = "\"";
+                    let (variable_string, _right) = split_specific(s, exclusion);
+                    for _ in 0..variable_string.len()+1 { iter.next(); }
+    
+                    let c = cur.clone();
+                    cur = c.borrow_mut()
+                        .create(
+                            TokenKind::STRING( variable_string.to_string() )
+                        );
+                    continue
+                }
+
+                let s = p.to_string() + iter.as_str();
+                let string = split_alphanumeric(&s).0.to_string();
+                for _ in 0..string.len() { iter.next(); }
+
+                let c = cur.clone();
+                cur = c.borrow_mut()
+                    .create(TokenKind::STRING(string));
+                // continue
+            }
+
+            // self.error_at(&p.to_string(), "トークナイズできません");
+            // return Err(InterpreterError::Untokenized);
         };
 
         let _eof = cur.borrow_mut().create(TokenKind::EOF);
