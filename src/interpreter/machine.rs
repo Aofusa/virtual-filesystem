@@ -8,6 +8,7 @@ pub enum Literal {
     FLOAT(f32),
     STRING(String),
     BYTE(u8),
+    VECTOR(Vec<Literal>),
 }
 
 impl std::fmt::Display for Literal {
@@ -17,6 +18,7 @@ impl std::fmt::Display for Literal {
             Literal::FLOAT(x) => x.fmt(f),
             Literal::STRING(x) => x.fmt(f),
             Literal::BYTE(x) => x.fmt(f),
+            Literal::VECTOR(x) => x.iter().try_fold((), |_, x| x.fmt(f)),
         }
     }
 }
