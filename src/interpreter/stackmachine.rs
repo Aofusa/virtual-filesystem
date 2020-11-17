@@ -72,6 +72,12 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
                     self.stack.push(*v);
                     return Ok(*v);
                 },
+                AbstractSyntaxTreeKind::RETURN => {
+                    let mut iter = n.1.iter();
+                    let rhs = iter.next().ok_or(InterpreterError::InvalidRValue)?;
+                    let vdata = self.execute(rhs)?;
+                    return Ok(vdata);
+                },
                 _ => {}
             }
         }
@@ -120,10 +126,7 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
         }
 
         // スタックの一番上の情報を返却し終了する
-        match self.stack.last() {
-            Some(x) => Ok(*x),
-            None => Err(InterpreterError::ZeroStack)
-        }
+        self.stack.last().and_then(|x| Some(*x)).ok_or(InterpreterError::ZeroStack)
     }
 }
 

@@ -87,8 +87,6 @@ mod tests {
         assert_eq!(x.interpret("42"), Ok(Some("42".to_string())));
         assert_eq!(x.interpret("5+20-4"), Ok(Some("21".to_string())));
         assert_eq!(x.interpret("5 - 3"), Ok(Some("2".to_string())));
-        // assert_eq!(x.interpret("5 - 3 a"), Err(InterpreterError::Untokenized));
-        // assert_eq!(x.interpret("2--"), Err(InterpreterError::SyntaxError));
         assert_eq!(x.interpret("5+6*7"), Ok(Some("47".to_string())));
         assert_eq!(x.interpret("5*(9-6)"), Ok(Some("15".to_string())));
         assert_eq!(x.interpret("(3+5) / 2"), Ok(Some("4".to_string())));
@@ -100,6 +98,8 @@ mod tests {
         assert_eq!(x.interpret("$foo = 1;
                                 $bar = 2 + 3;
                                 $foo + $bar;"), Ok(Some("6".to_string())));
+        assert_eq!(x.interpret("return 100;"), Ok(Some("100".to_string())));
+        assert_eq!(x.interpret("$a = 100; return $a / 10"), Ok(Some("10".to_string())));
     }
 }
 

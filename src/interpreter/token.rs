@@ -10,6 +10,7 @@ pub enum TokenKind {
     RESERVED(String),  // 記号
     IDENT(String),  // 識別子
     NUM(i32),  // 整数トークン
+    RETURN,  // return ステートメント
     EOF,  // 入力の終わりを表すトークン
 }
 
@@ -107,6 +108,20 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
         }
     }
 
+    // 次のトークンが期待している変数の時には、トークンを一つ読み進めて
+    // 変数名を返す。それ以外の時には None を返す。
+    pub fn consume_return(&mut self) -> bool {
+        let t = self.token.clone();
+        let p = &t.borrow().0;
+        match p {
+            TokenKind::RETURN => {
+                self.token = t.borrow().next();
+                true
+            }
+            _ => false,
+        }
+    }
+
     // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
     // それ以外の場合にはエラーを報告する。
     pub fn expect(&mut self, op: &str) ->Result<(), InterpreterError> {
@@ -192,6 +207,20 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                         TokenKind::IDENT( variable_string.to_string() )
                     );
                 continue
+            }
+
+            // return ステートメント
+            {
+                let s = p.to_string() + iter.as_str();
+                let statement = split_alphanumeric(&s).0;
+                if statement == "return" {
+                    for _ in 0..statement.len() { iter.next(); }
+
+                    let c = cur.clone();
+                    cur = c.borrow_mut()
+                        .create(TokenKind::RETURN);
+                    continue
+                }
             }
 
             // 演算子など記号

@@ -13,6 +13,7 @@ pub enum AbstractSyntaxTreeKind {
     ASSIGN,  // =
     LOCALVARIABLE(String),  // ローカル変数
     NUM(i32),  // 整数
+    RETURN,  // return ステートメント
 }
 
 
@@ -51,6 +52,10 @@ impl AbstractSyntaxTreeNode {
     fn variable(value: String) -> AbstractSyntaxTreeNodePointer {
         AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::LOCALVARIABLE(value), vec![])
     }
+
+    fn return_node(rhs: AbstractSyntaxTreeNodePointer) -> AbstractSyntaxTreeNodePointer {
+        AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::RETURN, vec![rhs.clone()])
+    }
 }
 
 
@@ -81,9 +86,13 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn stmt(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
-        let node = self.expr();
+        let node = if self.tokenizer.consume_return() {
+            AbstractSyntaxTreeNode::return_node(self.expr()?)
+        } else {
+            self.expr()?
+        };
         loop { if !self.tokenizer.consume(";") { break } }
-        node
+        Ok(node)
     }
 
     fn expr(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
