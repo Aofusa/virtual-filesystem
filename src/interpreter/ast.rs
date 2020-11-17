@@ -14,6 +14,7 @@ pub enum AbstractSyntaxTreeKind {
     LOCALVARIABLE(String),  // ローカル変数
     NUM(i32),  // 整数
     STRING(String),  // 文字列
+    FUNC(String),  // 関数
     RETURN,  // return ステートメント
 }
 
@@ -54,6 +55,10 @@ impl AbstractSyntaxTreeNode {
         AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::STRING(value), vec![])
     }
 
+    fn func(value: String, rhs: AbstractSyntaxTreeNodePointer) -> AbstractSyntaxTreeNodePointer {
+        AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::FUNC(value), vec![rhs.clone()])
+    }
+
     fn variable(value: String) -> AbstractSyntaxTreeNodePointer {
         AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::LOCALVARIABLE(value), vec![])
     }
@@ -83,11 +88,24 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
 
     fn program(&mut self) -> Result<&[AbstractSyntaxTreeNodePointer], InterpreterError> {
         let mut code = Vec::new();
+        code.push(self.func()?);
         while !self.tokenizer.at_eof() {
             code.push(self.stmt()?);
         }
         self.code = code;
         Ok(self.code.as_slice())
+    }
+
+    fn func(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        match self.tokenizer.consume_funccall() {
+            Some(s) => {
+                let node = AbstractSyntaxTreeNode::func(s, self.expr()?);
+                Ok(node)
+            },
+            None => {
+                self.stmt()
+            }
+        }
     }
 
     fn stmt(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {

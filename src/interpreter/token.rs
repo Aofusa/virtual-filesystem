@@ -11,6 +11,7 @@ pub enum TokenKind {
     IDENT(String),  // 識別子
     NUM(i32),  // 整数トークン
     STRING(String),  // 文字列トークン
+    FUNCCALL(String),  // 関数呼び出し
     RETURN,  // return ステートメント
     EOF,  // 入力の終わりを表すトークン
 }
@@ -123,6 +124,20 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
         }
     }
 
+    // 次のトークンが関数呼出の場合、トークンを1つ読み進めて関数名を返す。
+    // それ以外の場合には None を返す。
+    pub fn consume_funccall(&mut self) -> Option<String> {
+        let t = self.token.clone();
+        let p = &t.borrow().0;
+        match p {
+            TokenKind::FUNCCALL(x) => { 
+                self.token = t.borrow().next();
+                Some(x.to_string())
+            }
+            _ => None,
+        }
+    }
+
     // 次のトークンが期待しているステートメントの時には、トークンを一つ読み進めて
     // 真を返す。それ以外の場合には偽を返す。
     pub fn consume_return(&mut self) -> bool {
@@ -210,6 +225,24 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
         let mut cur = head.clone();
         let mut iter = code.chars();
         self.code = code.to_string();
+
+        // 最初は関数呼び出しとして扱う
+        {
+            while let Some(p) = iter.next() {
+                // 空白文字をスキップ
+                if p.is_whitespace() { continue }
+                
+                let s = p.to_string() + iter.as_str();
+                let string = s.split_whitespace().next().ok_or(InterpreterError::InvalidSource)?;
+                for _ in 0..string.len() { iter.next(); }
+
+                let c = cur.clone();
+                cur = c.borrow_mut().create(TokenKind::FUNCCALL(string.to_string()));
+                
+                // 最初の処理が終わったら抜ける
+                break
+            }
+        }
 
         while let Some(p) = iter.next() {
             // 空白文字をスキップ

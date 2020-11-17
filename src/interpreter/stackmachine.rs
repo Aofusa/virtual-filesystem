@@ -122,6 +122,16 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
                     let f = self.command.get("div").ok_or(InterpreterError::UndefinedFunction)?;
                     f(&mut self.stack)?;
                 },
+                AbstractSyntaxTreeKind::FUNC(x) if x == ":" => {
+                    let mut iter = n.1.iter();
+                    let rhs = iter.next().ok_or(InterpreterError::InvalidRValue)?;
+                    let vdata = self.execute(rhs)?;
+                    self.stack.push(vdata);
+                },
+                AbstractSyntaxTreeKind::FUNC(x) => {
+                    let f = self.command.get(x).ok_or(InterpreterError::UndefinedFunction)?;
+                    f(&mut self.stack)?;
+                },
                 _otherwise => {
                     self.logger.print("unreachable here");
                     return Err(InterpreterError::CalculationError)
