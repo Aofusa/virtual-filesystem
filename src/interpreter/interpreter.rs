@@ -1,8 +1,8 @@
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
-use super::token::{Tokenizer, TokenizerError};
-use super::ast::{AstBuilder, AbstractSyntaxTreeNodePointer, AstBuilderError};
+use super::token::Tokenizer;
+use super::ast::{AstBuilder, AbstractSyntaxTreeNodePointer};
 use super::stackmachine::StackMachine;
-use super::machine::{Machine, MachineError};
+use super::machine::Machine;
 
 
 pub type InterpreterResult = Result<Option<String>, InterpreterError>;
@@ -11,9 +11,12 @@ pub type InterpreterResult = Result<Option<String>, InterpreterError>;
 #[derive(Debug, PartialEq)]
 pub enum InterpreterError {
     Unknown,  // エラー内容不明
-    FailTokenize(TokenizerError),  // トークン化失敗
-    FailBuildAst(AstBuilderError),  // 構文解析失敗
-    FailExecute(MachineError),  // 構文木の実行失敗
+    Unexpected,  // 期待値と異なる
+    Untokenized,  // トークンかできなかった
+    SyntaxError,  // 構文と異なる
+    CalculationError,  // 演算実行時のエラー
+    ZeroStack,  // 演算スタックに何もなかった
+    UndefinedFunction,  // 未定義関数
 }
 
 
@@ -47,21 +50,21 @@ impl<T: LoggerRepository + Clone> Interpreter<T> {
     pub fn interpret(&mut self, s: &str) -> InterpreterResult {
         // トークナイズする
         let mut tokenizer = Tokenizer::init_with_logger(self.logger.get());
-        if let Err(e) = tokenizer.tokenize(s) { return Err(InterpreterError::FailTokenize(e)); }
+        if let Err(e) = tokenizer.tokenize(s) { return Err(e); }
 
         // 抽象構文木を作成する
         let mut ast = AstBuilder::init_with_logger(tokenizer, self.logger.get());
         let ast_pointer: AbstractSyntaxTreeNodePointer;
         match ast.build() {
             Ok(x) => ast_pointer = x,
-            Err(e) => return Err(InterpreterError::FailBuildAst(e)),
+            Err(e) => return Err(e),
         }
 
         // 抽象構文木を降りながら演算を行う
         let mut machine = StackMachine::init_with_logger(self.logger.get());
         match machine.execute(&ast_pointer) {
             Ok(x) => Ok(Some(format!("{}", x))),
-            Err(e) => Err(InterpreterError::FailExecute(e)),
+            Err(e) => Err(e),
         }
     }
 }
@@ -70,8 +73,6 @@ impl<T: LoggerRepository + Clone> Interpreter<T> {
 #[cfg(test)]
 mod tests {
     use crate::interpreter::interpreter::{Interpreter, InterpreterError};
-    use crate::interpreter::token::TokenizerError;
-    use crate::interpreter::ast::AstBuilderError;
     use crate::utils::logger::LoggerRepository;
 
     #[derive(Clone)]
@@ -88,8 +89,8 @@ mod tests {
         assert_eq!(x.interpret("42"), Ok(Some("42".to_string())));
         assert_eq!(x.interpret("5+20-4"), Ok(Some("21".to_string())));
         assert_eq!(x.interpret("5 - 3"), Ok(Some("2".to_string())));
-        assert_eq!(x.interpret("5 - 3 a"), Err(InterpreterError::FailTokenize(TokenizerError::Untokenized)));
-        assert_eq!(x.interpret("2--"), Err(InterpreterError::FailBuildAst(AstBuilderError::SyntaxError)));
+        assert_eq!(x.interpret("5 - 3 a"), Err(InterpreterError::Untokenized));
+        assert_eq!(x.interpret("2--"), Err(InterpreterError::SyntaxError));
         assert_eq!(x.interpret("5+6*7"), Ok(Some("47".to_string())));
         assert_eq!(x.interpret("5*(9-6)"), Ok(Some("15".to_string())));
         assert_eq!(x.interpret("(3+5) / 2"), Ok(Some("4".to_string())));

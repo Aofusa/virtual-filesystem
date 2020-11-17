@@ -1,17 +1,17 @@
-use super::machine::MachineError;
+use super::interpreter::InterpreterError;
 
 
-pub fn add(stack: &mut Vec<i32>) -> Result<i32, MachineError> {
+pub fn add(stack: &mut Vec<i32>) -> Result<i32, InterpreterError> {
     let a: i32;
     let b: i32;
 
     match stack.pop() {
         Some(x) => a = x,
-        None => return Err(MachineError::ZeroStack),
+        None => return Err(InterpreterError::ZeroStack),
     }
     match stack.pop() {
         Some(x) => b = x,
-        None => return Err(MachineError::ZeroStack),
+        None => return Err(InterpreterError::ZeroStack),
     }
 
     let x = b + a;
@@ -21,17 +21,17 @@ pub fn add(stack: &mut Vec<i32>) -> Result<i32, MachineError> {
 }
 
 
-pub fn sub(stack: &mut Vec<i32>) -> Result<i32, MachineError> {
+pub fn sub(stack: &mut Vec<i32>) -> Result<i32, InterpreterError> {
     let a: i32;
     let b: i32;
 
     match stack.pop() {
         Some(x) => a = x,
-        None => return Err(MachineError::ZeroStack),
+        None => return Err(InterpreterError::ZeroStack),
     }
     match stack.pop() {
         Some(x) => b = x,
-        None => return Err(MachineError::ZeroStack),
+        None => return Err(InterpreterError::ZeroStack),
     }
 
     let x = b - a;
@@ -41,17 +41,17 @@ pub fn sub(stack: &mut Vec<i32>) -> Result<i32, MachineError> {
 }
 
 
-pub fn mul(stack: &mut Vec<i32>) -> Result<i32, MachineError> {
+pub fn mul(stack: &mut Vec<i32>) -> Result<i32, InterpreterError> {
     let a: i32;
     let b: i32;
 
     match stack.pop() {
         Some(x) => a = x,
-        None => return Err(MachineError::ZeroStack),
+        None => return Err(InterpreterError::ZeroStack),
     }
     match stack.pop() {
         Some(x) => b = x,
-        None => return Err(MachineError::ZeroStack),
+        None => return Err(InterpreterError::ZeroStack),
     }
 
     let x = b * a;
@@ -61,17 +61,17 @@ pub fn mul(stack: &mut Vec<i32>) -> Result<i32, MachineError> {
 }
 
 
-pub fn div(stack: &mut Vec<i32>) -> Result<i32, MachineError> {
+pub fn div(stack: &mut Vec<i32>) -> Result<i32, InterpreterError> {
     let a: i32;
     let b: i32;
 
     match stack.pop() {
         Some(x) => a = x,
-        None => return Err(MachineError::ZeroStack),
+        None => return Err(InterpreterError::ZeroStack),
     }
     match stack.pop() {
         Some(x) => b = x,
-        None => return Err(MachineError::ZeroStack),
+        None => return Err(InterpreterError::ZeroStack),
     }
 
     let x = b / a;

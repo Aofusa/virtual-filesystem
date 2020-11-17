@@ -1,14 +1,7 @@
 use crate::virtual_filesystem_core::graph::{Node, NodePointer, Graph};
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
 use super::common::split_digit;
-
-
-#[derive(Debug, PartialEq)]
-pub enum TokenizerError {
-    Unknown,  // エラー内容不明
-    Unexpected,  // 期待値と異なる
-    Untokenized,  // トークン化できなかった
-}
+use super::interpreter::InterpreterError;
 
 
 // トークン型
@@ -101,7 +94,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
 
     // 次のトークンが期待している記号のときには、トークンを1つ読み進める。
     // それ以外の場合にはエラーを報告する。
-    pub fn expect(&mut self, op: &str) ->Result<(), TokenizerError> {
+    pub fn expect(&mut self, op: &str) ->Result<(), InterpreterError> {
         let t = self.token.clone();
         let p = &t.borrow().0;
         match p {
@@ -111,18 +104,18 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             },
             TokenKind::NUM(x) => { 
                 self.error_at(&x.to_string(), "記号ではありません");
-                Err(TokenizerError::Unexpected)
+                Err(InterpreterError::Unexpected)
             },
             _ => {
                 self.logger.print(&format!("'{}' ではありません", op));
-                Err(TokenizerError::Unexpected)
+                Err(InterpreterError::Unexpected)
             },
         }
     }
 
     // 次のトークンが数値の場合、トークンを1つ読み進めてその数値を返す。
     // それ以外の場合にはエラーを報告する。
-    pub fn expect_number(&mut self) -> Result<i32, TokenizerError> {
+    pub fn expect_number(&mut self) -> Result<i32, InterpreterError> {
         let t = self.token.clone();
         let p = &t.borrow().0;
         match p {
@@ -132,11 +125,11 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             },
             TokenKind::RESERVED(x) => { 
                 self.error_at(x, "数ではありません");
-                Err(TokenizerError::Unexpected)
+                Err(InterpreterError::Unexpected)
             },
             _ => {
                 self.logger.print("数ではありません");
-                Err(TokenizerError::Unexpected)
+                Err(InterpreterError::Unexpected)
             },
         }
     }
@@ -151,7 +144,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
     }
 
     // 入力文字列pをトークナイズしてそれを返す
-    pub fn tokenize(&mut self, code: &str) -> Result<TokenNodePointer, TokenizerError> {
+    pub fn tokenize(&mut self, code: &str) -> Result<TokenNodePointer, InterpreterError> {
         let head = TokenNode::new(TokenKind::EOF, vec![]);
         let mut cur = head.clone();
         let mut iter = code.chars();
@@ -186,7 +179,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             }
 
             self.error_at(&p.to_string(), "トークナイズできません");
-            return Err(TokenizerError::Untokenized);
+            return Err(InterpreterError::Untokenized);
         };
 
         let _eof = cur.borrow_mut().create(TokenKind::EOF);

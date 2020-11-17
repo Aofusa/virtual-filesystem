@@ -1,13 +1,7 @@
 use crate::virtual_filesystem_core::graph::{Node, NodePointer, Graph};
 use crate::utils::logger::{LoggerRepository, LoggerInteractor, DefaultLoggerRepository};
 use super::token::Tokenizer;
-
-
-#[derive(Debug, PartialEq)]
-pub enum AstBuilderError {
-    Unknown,  // エラー内容不明
-    SyntaxError,  // 期待しているものではなかった
-}
+use super::interpreter::InterpreterError;
 
 
 #[derive(Debug)]
@@ -65,11 +59,11 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         AstBuilder::new(tokenizer, logger)
     }
 
-    pub fn build(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
+    pub fn build(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
         self.expr()
     }
 
-    fn expr(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
+    fn expr(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
         let mut node: AbstractSyntaxTreeNodePointer;
         match self.mul() {
             Ok(x) => node = x,
@@ -107,7 +101,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         }
     }
 
-    fn mul(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
+    fn mul(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
         let mut node: AbstractSyntaxTreeNodePointer;
         match self.unary() {
             Ok(x) => node = x,
@@ -145,7 +139,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         }
     }
 
-    fn unary(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
+    fn unary(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
         if self.tokenizer.consume("+") {
             self.primary()
         } else if self.tokenizer.consume("-") {
@@ -164,7 +158,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         }
     }
 
-    fn primary(&mut self) -> Result<AbstractSyntaxTreeNodePointer, AstBuilderError> {
+    fn primary(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
         // 次のトークンが "(" なら、 "(" expr ")" のはず
         if self.tokenizer.consume("(") {
             let node = self.expr();
@@ -172,16 +166,16 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
                 Ok(()) => {
                     match node {
                         Ok(n) => Ok(n),
-                        Err(_) => Err(AstBuilderError::SyntaxError),
+                        Err(_) => Err(InterpreterError::SyntaxError),
                     }
                 },
-                Err(_) => Err(AstBuilderError::SyntaxError),
+                Err(_) => Err(InterpreterError::SyntaxError),
             }
         } else {
             // そうでなければ数値のはず
             match self.tokenizer.expect_number() {
                 Ok(x) => Ok(AbstractSyntaxTreeNode::num(x)),
-                Err(_) => Err(AstBuilderError::SyntaxError),
+                Err(_) => Err(InterpreterError::SyntaxError),
             }
         }
     }
