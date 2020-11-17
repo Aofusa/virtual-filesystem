@@ -67,17 +67,17 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         AstBuilder::new(tokenizer, logger)
     }
 
-    pub fn build(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+    pub fn build(&mut self) -> Result<&[AbstractSyntaxTreeNodePointer], InterpreterError> {
         self.program()
     }
 
-    fn program(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+    fn program(&mut self) -> Result<&[AbstractSyntaxTreeNodePointer], InterpreterError> {
         let mut code = Vec::new();
         while !self.tokenizer.at_eof() {
             code.push(self.stmt()?);
         }
         self.code = code;
-        Ok(self.code.first().ok_or(InterpreterError::InvalidSource)?.clone())
+        Ok(self.code.as_slice())
     }
 
     fn stmt(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {

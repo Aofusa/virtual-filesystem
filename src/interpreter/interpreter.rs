@@ -58,11 +58,12 @@ impl<T: LoggerRepository + Clone> Interpreter<T> {
 
         // 抽象構文木を作成する
         let mut ast = AstBuilder::init_with_logger(tokenizer, self.logger.get());
-        let ast_pointer = ast.build()?;
+        let programs = ast.build()?;
 
         // 抽象構文木を降りながら演算を行う
         let mut machine = StackMachine::init_with_logger(self.logger.get());
-        Ok(Some(format!("{}", machine.execute(&ast_pointer)? )))
+        let res = programs.iter().try_fold(0, |_acc, x| machine.execute(x))?;
+        Ok(Some(format!("{}", res)))
     }
 }
 
@@ -95,7 +96,10 @@ mod tests {
         assert_eq!(x.interpret("$a=-10+(+20)"), Ok(Some("10".to_string())));
         assert_eq!(x.interpret("$a=$b * $a"), Err(InterpreterError::UndefinedVariable));
         assert_eq!(x.interpret("$absc = 100"), Ok(Some("100".to_string())));
-        assert_eq!(x.interpret("$absc = 100; 2 * $absc;;;"), Ok(Some("100".to_string())));
+        assert_eq!(x.interpret("$absc = 100; 2 * $absc;;;"), Ok(Some("200".to_string())));
+        assert_eq!(x.interpret("$foo = 1;
+                                $bar = 2 + 3;
+                                $foo + $bar;"), Ok(Some("6".to_string())));
     }
 }
 
