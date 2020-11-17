@@ -64,32 +64,18 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn expr(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
-        let mut node: AbstractSyntaxTreeNodePointer;
-        match self.mul() {
-            Ok(x) => node = x,
-            Err(e) => return Err(e),
-        }
+        let mut node = self.mul()?;
 
         loop {
             if self.tokenizer.consume("+") {
-                let rhs: AbstractSyntaxTreeNodePointer;
-                match self.mul() {
-                    Ok(x) => rhs = x,
-                    Err(e) => return Err(e),
-                }
-
+                let rhs = self.mul()?;
                 node = AbstractSyntaxTreeNode::create(
                     AbstractSyntaxTreeKind::ADD,
                     node,
                     rhs.clone()
                 );
             } else if self.tokenizer.consume("-") {
-                let rhs: AbstractSyntaxTreeNodePointer;
-                match self.mul() {
-                    Ok(x) => rhs = x,
-                    Err(e) => return Err(e),
-                }
-
+                let rhs = self.mul()?;
                 node = AbstractSyntaxTreeNode::create(
                     AbstractSyntaxTreeKind::SUB,
                     node,
@@ -102,32 +88,18 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn mul(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
-        let mut node: AbstractSyntaxTreeNodePointer;
-        match self.unary() {
-            Ok(x) => node = x,
-            Err(e) => return Err(e),
-        }
+        let mut node = self.unary()?;
 
         loop {
             if self.tokenizer.consume("*") {
-                let rhs: AbstractSyntaxTreeNodePointer;
-                match self.unary() {
-                    Ok(x) => rhs = x,
-                    Err(e) => return Err(e),
-                }
-
+                let rhs = self.unary()?;
                 node = AbstractSyntaxTreeNode::create(
                     AbstractSyntaxTreeKind::MUL,
                     node.clone(),
                     rhs.clone()
                 );
             } else if self.tokenizer.consume("/") {
-                let rhs: AbstractSyntaxTreeNodePointer;
-                match self.unary() {
-                    Ok(x) => rhs = x,
-                    Err(e) => return Err(e),
-                }
-
+                let rhs = self.unary()?;
                 node = AbstractSyntaxTreeNode::create(
                     AbstractSyntaxTreeKind::DIV,
                     node.clone(),

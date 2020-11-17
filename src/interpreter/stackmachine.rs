@@ -61,16 +61,12 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
 
             // 左辺の抽象構文木の計算
             if let Some(x) = iter.next() {
-                if let Err(e) = self.execute(x) {
-                    return Err(e);
-                }
+                self.execute(x)?;
             }
 
             // 右辺の抽象構文木の計算
             if let Some(x) = iter.next() {
-                if let Err(e) = self.execute(x) {
-                    return Err(e);
-                }
+                self.execute(x)?;
             }
         }
 
@@ -79,28 +75,20 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
             let n = node.borrow();
             match &n.0 {
                 AbstractSyntaxTreeKind::ADD => {
-                    match self.command.get("add") {
-                        Some(f) => { if let Err(e) = f(&mut self.stack) { return Err(e); } },
-                        None => return Err(InterpreterError::UndefinedFunction)
-                    }
+                    let f = self.command.get("add").ok_or(InterpreterError::UndefinedFunction)?;
+                    f(&mut self.stack)?;
                 },
                 AbstractSyntaxTreeKind::SUB => {
-                    match self.command.get("sub") {
-                        Some(f) => { if let Err(e) = f(&mut self.stack) { return Err(e); } },
-                        None => return Err(InterpreterError::UndefinedFunction)
-                    }
+                    let f = self.command.get("sub").ok_or(InterpreterError::UndefinedFunction)?;
+                    f(&mut self.stack)?;
                 },
                 AbstractSyntaxTreeKind::MUL => {
-                    match self.command.get("mul") {
-                        Some(f) => { if let Err(e) = f(&mut self.stack) { return Err(e); } },
-                        None => return Err(InterpreterError::UndefinedFunction)
-                    }
+                    let f = self.command.get("mul").ok_or(InterpreterError::UndefinedFunction)?;
+                    f(&mut self.stack)?;
                 },
                 AbstractSyntaxTreeKind::DIV => {
-                    match self.command.get("div") {
-                        Some(f) => { if let Err(e) = f(&mut self.stack) { return Err(e); } },
-                        None => return Err(InterpreterError::UndefinedFunction)
-                    }
+                    let f = self.command.get("div").ok_or(InterpreterError::UndefinedFunction)?;
+                    f(&mut self.stack)?;
                 },
                 _otherwise => {
                     self.logger.print("unreachable here");
