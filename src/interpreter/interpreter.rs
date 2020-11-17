@@ -18,6 +18,9 @@ pub enum InterpreterError {
     CalculationError,  // 演算実行時のエラー
     ZeroStack,  // 演算スタックに何もなかった
     UndefinedFunction,  // 未定義関数
+    UndefinedVariable,  // 未定義変数
+    InvalidLVariable,  // 左辺値が変数ではない
+    InvalidRValue,  // 右辺値が不正な形式
 }
 
 
@@ -66,7 +69,7 @@ impl<T: LoggerRepository + Clone> Interpreter<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::interpreter::interpreter::Interpreter;
+    use crate::interpreter::interpreter::{Interpreter, InterpreterError};
     use crate::utils::logger::LoggerRepository;
 
     #[derive(Clone)]
@@ -89,6 +92,9 @@ mod tests {
         assert_eq!(x.interpret("5*(9-6)"), Ok(Some("15".to_string())));
         assert_eq!(x.interpret("(3+5) / 2"), Ok(Some("4".to_string())));
         assert_eq!(x.interpret("-10+(+20)"), Ok(Some("10".to_string())));
+        assert_eq!(x.interpret("$a=-10+(+20)"), Ok(Some("10".to_string())));
+        assert_eq!(x.interpret("$a=$b * $a"), Err(InterpreterError::UndefinedVariable));
+        assert_eq!(x.interpret("$absc = 100"), Ok(Some("100".to_string())));
     }
 }
 

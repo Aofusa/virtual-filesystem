@@ -11,6 +11,7 @@ where
     T: LoggerRepository + Clone
 {
     stack: Vec<i32>,  // 演算スタック
+    variables: HashMap<String, i32>,  // 変数リスト
     command: HashMap<String, Box<dyn Fn(&mut Vec<i32>) -> Result<i32, InterpreterError>>>,
     logger: LoggerInteractor<T>,
 }
@@ -33,6 +34,7 @@ impl<T: LoggerRepository + Clone> StackMachine<T> {
 
         StackMachine {
             stack: vec![],
+            variables: HashMap::new(),
             command: c,
             logger: LoggerInteractor::new(logger),
         }
@@ -48,9 +50,29 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
         {
             // 終端ノードであれば値を返して再帰から復帰していく
             let n = node.borrow();
-            if let AbstractSyntaxTreeKind::NUM(x) = n.0 {
-                self.stack.push(x);
-                return Ok(x);
+            match &n.0 {
+                AbstractSyntaxTreeKind::NUM(x) => {
+                    self.stack.push(*x);
+                    return Ok(*x);
+                },
+                AbstractSyntaxTreeKind::ASSIGN => {
+                    let mut iter = n.1.iter();
+                    let lhs = iter.next().ok_or(InterpreterError::InvalidLVariable)?.clone();
+                    let lhs_kind = &lhs.borrow().0;
+                    let rhs = iter.next().ok_or(InterpreterError::InvalidRValue)?;
+                    if let AbstractSyntaxTreeKind::LOCALVARIABLE(vname) = lhs_kind {
+                        let vdata = self.execute(rhs)?;
+                        self.variables.insert(vname.to_string(), vdata);
+                        return Ok(vdata);
+                    }
+                    return Err(InterpreterError::InvalidLVariable);
+                },
+                AbstractSyntaxTreeKind::LOCALVARIABLE(x) => {
+                    let v = self.variables.get(x).ok_or(InterpreterError::UndefinedVariable)?;
+                    self.stack.push(*v);
+                    return Ok(*v);
+                },
+                _ => {}
             }
         }
 
