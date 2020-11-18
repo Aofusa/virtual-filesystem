@@ -99,7 +99,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     fn func(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
         match self.tokenizer.consume_funccall() {
             Some(s) => {
-                let node = AbstractSyntaxTreeNode::func(s, self.expr()?);
+                let node = AbstractSyntaxTreeNode::func(s, self.stmt()?);
                 Ok(node)
             },
             None => {
@@ -112,7 +112,14 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         let node = if self.tokenizer.consume_return() {
             AbstractSyntaxTreeNode::return_node(self.expr()?)
         } else {
-            self.expr()?
+            match self.tokenizer.consume_funccall() {
+                Some(s) => {
+                    AbstractSyntaxTreeNode::func(s, self.stmt()?)
+                },
+                None => {
+                    self.expr()?
+                }
+            }
         };
         loop { if !self.tokenizer.consume(";") { break } }
         Ok(node)
@@ -201,37 +208,62 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn primary(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
-        // 次のトークンが "(" なら、 "(" expr ")" のはず
-        if self.tokenizer.consume("(") {
-            let node = self.expr();
-            self.tokenizer.expect(")")?;
-            node
+        if self.tokenizer.consume("$") {
+            // プログラムの呼び出し
+            if self.tokenizer.consume("(") {
+                let node = match self.tokenizer.consume_funccall() {
+                    Some(s) => {
+                        let node = AbstractSyntaxTreeNode::func(s, self.stmt()?);
+                        Ok(node)
+                    },
+                    None => {
+                        self.stmt()
+                    }
+                };
+                self.tokenizer.expect(")")?;
+                node
+            } else {
+                // プログラム呼び出しでなければ変数呼び出し
+                match self.tokenizer.consume_ident() {
+                    Some(t) => Ok(AbstractSyntaxTreeNode::variable(t)),
+                    None => Err(InterpreterError::SyntaxError),
+                }
+            }
         } else {
-            // もしかしたら変数かもしれない
-            match self.tokenizer.consume_ident() {
-                Some(t) => Ok(AbstractSyntaxTreeNode::variable(t)),
-                None => {
-                    // もしかしたら文字列かもしれない
-                    match self.tokenizer.consume_strings() {
-                        Some(s) => {
-                            if self.tokenizer.consume("\"") {
-                                let node = AbstractSyntaxTreeNode::string(s);
-                                self.tokenizer.expect("\"")?;
-                                Ok(node)
-                            } else if self.tokenizer.consume("'") {
-                                let node = AbstractSyntaxTreeNode::string(s);
-                                self.tokenizer.expect("'")?;
-                                Ok(node)
-                            } else {
-                                let node = AbstractSyntaxTreeNode::string(s);
-                                Ok(node)
+            // 次のトークンが "(" なら、 "(" expr ")" のはず
+            if self.tokenizer.consume("(") {
+                let node = self.expr();
+                self.tokenizer.expect(")")?;
+                node
+            } else {
+                // もしかしたら文字列かもしれない
+                match self.tokenizer.consume_strings() {
+                    Some(s) => {
+                        if self.tokenizer.consume("\"") {
+                            let mut str = s.to_string();
+                            loop {
+                                if self.tokenizer.consume("\"") { break }
+                                str = str + &self.tokenizer.consume_any();
                             }
-                        },
-                        None => {
-                            // そうでなければ数値のはず
-                            let x = self.tokenizer.expect_number()?;
-                            Ok(AbstractSyntaxTreeNode::num(x))
+                            let node = AbstractSyntaxTreeNode::string(s);
+                            Ok(node)
+                        } else if self.tokenizer.consume("'") {
+                            let mut str = s.to_string();
+                            loop {
+                                if self.tokenizer.consume("'") { break }
+                                str = str + &self.tokenizer.consume_any();
+                            }
+                            let node = AbstractSyntaxTreeNode::string(s);
+                            Ok(node)
+                        } else {
+                            let node = AbstractSyntaxTreeNode::string(s);
+                            Ok(node)
                         }
+                    },
+                    None => {
+                        // そうでなければ数値のはず
+                        let x = self.tokenizer.expect_number()?;
+                        Ok(AbstractSyntaxTreeNode::num(x))
                     }
                 }
             }

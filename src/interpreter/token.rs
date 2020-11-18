@@ -124,6 +124,21 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
         }
     }
 
+    // 次のトークンが何であるかにかかわらず文字列を返す
+    pub fn consume_any(&mut self) -> String {
+        let t = self.token.clone();
+        let p = &t.borrow().0;
+        match p {
+            TokenKind::NUM(x) => format!("{}", x),
+            TokenKind::STRING(x) =>  x.to_string(),
+            TokenKind::FUNCCALL(x) => format!("{}", x),
+            TokenKind::RESERVED(x) => format!("{}", x),
+            TokenKind::IDENT(x) => format!("{}", x),
+            TokenKind::RETURN => "".to_string(),
+            TokenKind::EOF => "\0".to_string(),
+        }
+    }
+
     // 次のトークンが関数呼出の場合、トークンを1つ読み進めて関数名を返す。
     // それ以外の場合には None を返す。
     pub fn consume_funccall(&mut self) -> Option<String> {
@@ -170,6 +185,10 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 self.error_at(&x.to_string(), "記号ではありません");
                 Err(InterpreterError::Unexpected)
             },
+            TokenKind::FUNCCALL(x) => {
+                self.error_at(&x.to_string(), "記号ではありません");
+                Err(InterpreterError::Unexpected)
+            },
             TokenKind::IDENT(x) => {
                 self.error_at(&x.to_string(), "記号ではありません");
                 Err(InterpreterError::Unexpected)
@@ -193,6 +212,10 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             },
             TokenKind::STRING(x) => { 
                 self.error_at(x, "数ではありません");
+                Err(InterpreterError::Unexpected)
+            },
+            TokenKind::FUNCCALL(x) => {
+                self.error_at(&x.to_string(), "数ではありません");
                 Err(InterpreterError::Unexpected)
             },
             TokenKind::RESERVED(x) => { 
@@ -226,11 +249,13 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
         let mut iter = code.chars();
         self.code = code.to_string();
 
-        // 最初は関数呼び出しとして扱う
+        // 一番初めは関数呼び出し
         {
             while let Some(p) = iter.next() {
                 // 空白文字をスキップ
                 if p.is_whitespace() { continue }
+
+                // 文字列を変数名に変換しイテレータを進める
                 
                 let s = p.to_string() + iter.as_str();
                 let string = s.split_whitespace().next().ok_or(InterpreterError::InvalidSource)?;
@@ -247,23 +272,6 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
         while let Some(p) = iter.next() {
             // 空白文字をスキップ
             if p.is_whitespace() { continue }
-
-            // 変数
-            if p == '$' {
-                // 文字列を変数名に変換しイテレータを進める
-                let s = iter.as_str();
-                let exclusion = "=+-*/!@#$%^&¥|`~/.,:;'\"<>()[]{}";  // 変数名に使用できないリスト
-                let (san, _right) = split_alphanumeric(s);
-                let (variable_string, _right) = split_specific(san, exclusion);
-                for _ in 0..variable_string.len() { iter.next(); }
-
-                let c = cur.clone();
-                cur = c.borrow_mut()
-                    .create(
-                        TokenKind::IDENT( variable_string.to_string() )
-                    );
-                continue
-            }
 
             // return ステートメント
             {
@@ -283,7 +291,9 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             if p == '+' || p == '-' ||
                p == '*' || p == '/' ||
                p == '(' || p == ')' ||
-               p == '=' || p == ';' {
+               p == '=' || p == ';' ||
+               p == '$' || p == '"' ||
+               p == '\'' {
                 let c = cur.clone();
                 cur = c.borrow_mut()
                     .create(
@@ -307,46 +317,25 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
 
             // 文字列
             {
-                if p == '\'' {
-                    let s = iter.as_str();
-                    let exclusion = "'";
-                    let (variable_string, _right) = split_specific(s, exclusion);
-                    for _ in 0..variable_string.len()+1 { iter.next(); }
-    
+                // 文字列を変数名に変換しイテレータを進める
+                let s = iter.as_str();
+                let exclusion = "=+-*/!@#$%^&¥|`~/.,:;'\"<>()[]{}";  // 変数名に使用できないリスト
+                let (san, _right) = split_alphanumeric(s);
+                let (variable_string, _right) = split_specific(san, exclusion);
+                if !variable_string.is_empty() {
+                    for _ in 0..variable_string.len() { iter.next(); }
+
                     let c = cur.clone();
                     cur = c.borrow_mut()
                         .create(
-                            TokenKind::STRING( variable_string.to_string() )
+                            TokenKind::IDENT( variable_string.to_string() )
                         );
                     continue
                 }
-
-                if p == '"' {
-                    let s = iter.as_str();
-                    let exclusion = "\"";
-                    let (variable_string, _right) = split_specific(s, exclusion);
-                    for _ in 0..variable_string.len()+1 { iter.next(); }
-    
-                    let c = cur.clone();
-                    cur = c.borrow_mut()
-                        .create(
-                            TokenKind::STRING( variable_string.to_string() )
-                        );
-                    continue
-                }
-
-                let s = p.to_string() + iter.as_str();
-                let string = split_alphanumeric(&s).0.to_string();
-                for _ in 0..string.len() { iter.next(); }
-
-                let c = cur.clone();
-                cur = c.borrow_mut()
-                    .create(TokenKind::STRING(string));
-                // continue
             }
 
-            // self.error_at(&p.to_string(), "トークナイズできません");
-            // return Err(InterpreterError::Untokenized);
+            self.error_at(&p.to_string(), "トークナイズできません");
+            return Err(InterpreterError::Untokenized);
         };
 
         let _eof = cur.borrow_mut().create(TokenKind::EOF);
