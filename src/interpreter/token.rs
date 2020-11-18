@@ -256,10 +256,9 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 if p.is_whitespace() { continue }
 
                 // 文字列を変数名に変換しイテレータを進める
-                
                 let s = p.to_string() + iter.as_str();
                 let string = s.split_whitespace().next().ok_or(InterpreterError::InvalidSource)?;
-                for _ in 0..string.len() { iter.next(); }
+                for _ in 0..string.len()-1 { iter.next(); }
 
                 let c = cur.clone();
                 cur = c.borrow_mut().create(TokenKind::FUNCCALL(string.to_string()));
@@ -318,9 +317,9 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
             // 文字列
             {
                 // 文字列を変数名に変換しイテレータを進める
-                let s = iter.as_str();
+                let s = p.to_string() + iter.as_str();
                 let exclusion = "=+-*/!@#$%^&¥|`~/.,:;'\"<>()[]{}";  // 変数名に使用できないリスト
-                let (san, _right) = split_alphanumeric(s);
+                let (san, _right) = split_alphanumeric(&s);
                 let (variable_string, _right) = split_specific(san, exclusion);
                 if !variable_string.is_empty() {
                     for _ in 0..variable_string.len() { iter.next(); }
