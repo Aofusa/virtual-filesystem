@@ -87,6 +87,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn program(&mut self) -> Result<&[AbstractSyntaxTreeNodePointer], InterpreterError> {
+        self.logger.print("program");
         let mut code = Vec::new();
         code.push(self.func()?);
         while !self.tokenizer.at_eof() {
@@ -97,6 +98,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn func(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        self.logger.print("func");
         match self.tokenizer.consume_funccall() {
             Some(s) => {
                 let node = AbstractSyntaxTreeNode::func(s, self.stmt()?);
@@ -109,6 +111,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn stmt(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        self.logger.print("stmt");
         let node = if self.tokenizer.consume_return() {
             AbstractSyntaxTreeNode::return_node(self.expr()?)
         } else {
@@ -126,10 +129,12 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn expr(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        self.logger.print("expr");
         self.assign()
     }
 
     fn assign(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        self.logger.print("assign");
         let mut node = self.add()?;
         if self.tokenizer.consume("=") {
             let rhs = self.assign()?;
@@ -143,6 +148,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn add(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        self.logger.print("add");
         let mut node = self.mul()?;
 
         loop {
@@ -167,6 +173,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn mul(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        self.logger.print("mul");
         let mut node = self.unary()?;
 
         loop {
@@ -191,6 +198,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn unary(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        self.logger.print("unary");
         if self.tokenizer.consume("+") {
             self.primary()
         } else if self.tokenizer.consume("-") {
@@ -208,6 +216,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
     }
 
     fn primary(&mut self) -> Result<AbstractSyntaxTreeNodePointer, InterpreterError> {
+        self.logger.print("primary");
         if self.tokenizer.consume("$") {
             // プログラムの呼び出し
             if self.tokenizer.consume("(") {
@@ -224,7 +233,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
                 node
             } else {
                 // プログラム呼び出しでなければ変数呼び出し
-                match self.tokenizer.consume_ident() {
+                match self.tokenizer.consume_strings() {
                     Some(t) => Ok(AbstractSyntaxTreeNode::variable(t)),
                     None => Err(InterpreterError::SyntaxError),
                 }

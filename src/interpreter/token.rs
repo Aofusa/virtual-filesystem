@@ -248,6 +248,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
         let mut cur = head.clone();
         let mut iter = code.chars();
         self.code = code.to_string();
+        self.logger.print(&format!("input code: {}", code));
 
         // 一番初めは関数呼び出し
         {
@@ -259,6 +260,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 let s = p.to_string() + iter.as_str();
                 let string = s.split_whitespace().next().ok_or(InterpreterError::InvalidSource)?;
                 for _ in 0..string.len()-1 { iter.next(); }
+                self.logger.print(&format!("funccall token: {}", string));
 
                 let c = cur.clone();
                 cur = c.borrow_mut().create(TokenKind::FUNCCALL(string.to_string()));
@@ -277,6 +279,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 let s = p.to_string() + iter.as_str();
                 let statement = split_alphanumeric(&s).0;
                 if statement == "return" {
+                    self.logger.print(&format!("return token: {}", statement));
                     for _ in 0..statement.len() { iter.next(); }
 
                     let c = cur.clone();
@@ -293,6 +296,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                p == '=' || p == ';' ||
                p == '$' || p == '"' ||
                p == '\'' {
+                self.logger.print(&format!("reserved token: {}", p));
                 let c = cur.clone();
                 cur = c.borrow_mut()
                     .create(
@@ -307,6 +311,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 let (number_string, _right) = split_digit(&origin_str);
                 let n: i32 = number_string.parse().unwrap();
                 for _ in 0..number_string.len()-1 { iter.next(); }
+                self.logger.print(&format!("num token: {}", n));
 
                 let c = cur.clone();
                 cur = c.borrow_mut()
@@ -322,12 +327,13 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 let (san, _right) = split_alphanumeric(&s);
                 let (variable_string, _right) = split_specific(san, exclusion);
                 if !variable_string.is_empty() {
-                    for _ in 0..variable_string.len() { iter.next(); }
+                    self.logger.print(&format!("string token: {}", variable_string));
+                    for _ in 0..variable_string.len()-1 { iter.next(); }
 
                     let c = cur.clone();
                     cur = c.borrow_mut()
                         .create(
-                            TokenKind::IDENT( variable_string.to_string() )
+                            TokenKind::STRING( variable_string.to_string() )
                         );
                     continue
                 }

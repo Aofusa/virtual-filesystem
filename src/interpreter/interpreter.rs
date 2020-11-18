@@ -75,7 +75,7 @@ mod tests {
     use crate::utils::logger::LoggerRepository;
 
     #[derive(Clone)]
-    pub struct PrintLoggerRepository {}
+    pub struct PrintLoggerRepository;
     impl LoggerRepository for PrintLoggerRepository {
         fn print(&self, message: &str) {
             println!("{}", message);
@@ -92,15 +92,15 @@ mod tests {
         assert_eq!(x.interpret(": 5*(9-6)"), Ok(Some("15".to_string())));
         assert_eq!(x.interpret(": (3+5) / 2"), Ok(Some("4".to_string())));
         assert_eq!(x.interpret(": -10+(+20)"), Ok(Some("10".to_string())));
-        // assert_eq!(x.interpret(": $a=-10+(+20)"), Ok(Some("10".to_string())));
-        // assert_eq!(x.interpret(": $a=$b * $a"), Err(InterpreterError::UndefinedVariable));
-        // assert_eq!(x.interpret(": $absc = 100"), Ok(Some("100".to_string())));
-        // assert_eq!(x.interpret(": $absc = 100; 2 * $absc;;;"), Ok(Some("200".to_string())));
-        // assert_eq!(x.interpret(": $foo = 1;
-        //                         $bar = 2 + 3;
-        //                         $foo + $bar;"), Ok(Some("6".to_string())));
-        // assert_eq!(x.interpret(": return 100;"), Ok(Some("100".to_string())));
-        // assert_eq!(x.interpret(": $a = 100; return $a / 10"), Ok(Some("10".to_string())));
+        assert_eq!(x.interpret(": $a=-10+(+20)"), Ok(Some("10".to_string())));
+        assert_eq!(x.interpret(": $a=$b * $a"), Err(InterpreterError::UndefinedVariable));
+        assert_eq!(x.interpret(": $absc = 100"), Ok(Some("100".to_string())));
+        assert_eq!(x.interpret(": $absc = 100; 2 * $absc;;;"), Ok(Some("200".to_string())));
+        assert_eq!(x.interpret(": $foo = 1;
+                                $bar = 2 + 3;
+                                $foo + $bar;"), Ok(Some("6".to_string())));
+        assert_eq!(x.interpret(": return 100;"), Ok(Some("100".to_string())));
+        assert_eq!(x.interpret(": $a = 100; return $a / 10"), Ok(Some("10".to_string())));
         // assert_eq!(x.interpret(": $a = abs; $b = 'drf'; $c = \"123\""), Ok(Some("123".to_string())));
     }
 }
