@@ -124,8 +124,12 @@ impl<T: LoggerRepository + Clone> Machine for StackMachine<T> {
                 },
                 AbstractSyntaxTreeKind::FUNC(x) if x == ":" => {
                     let mut iter = n.1.iter();
-                    let rhs = iter.next().ok_or(InterpreterError::InvalidRValue)?;
-                    let vdata = self.execute(rhs)?;
+                    let vdata = match iter.next() {
+                        Some(x) => {
+                            self.execute(x)?
+                        },
+                        None => Literal::STRING("".to_string())
+                    };
                     self.stack.push(vdata);
                 },
                 AbstractSyntaxTreeKind::FUNC(x) => {

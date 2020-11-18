@@ -59,6 +59,10 @@ impl AbstractSyntaxTreeNode {
         AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::FUNC(value), vec![rhs.clone()])
     }
 
+    fn func_no_arg(value: String) -> AbstractSyntaxTreeNodePointer {
+        AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::FUNC(value), vec![])
+    }
+
     fn variable(value: String) -> AbstractSyntaxTreeNodePointer {
         AbstractSyntaxTreeNode::new(AbstractSyntaxTreeKind::LOCALVARIABLE(value), vec![])
     }
@@ -101,7 +105,11 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         self.logger.print("func");
         match self.tokenizer.consume_funccall() {
             Some(s) => {
-                let node = AbstractSyntaxTreeNode::func(s, self.stmt()?);
+                let node = if self.tokenizer.at_eof() || self.tokenizer.consume(";") {
+                    AbstractSyntaxTreeNode::func_no_arg(s)
+                } else {
+                    AbstractSyntaxTreeNode::func(s, self.stmt()?)
+                };
                 Ok(node)
             },
             None => {
@@ -117,7 +125,11 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         } else {
             match self.tokenizer.consume_funccall() {
                 Some(s) => {
-                    AbstractSyntaxTreeNode::func(s, self.stmt()?)
+                    if self.tokenizer.at_eof() || self.tokenizer.consume(";") {
+                        AbstractSyntaxTreeNode::func_no_arg(s)
+                    } else {
+                        AbstractSyntaxTreeNode::func(s, self.stmt()?)
+                    }
                 },
                 None => {
                     self.expr()?
@@ -222,7 +234,11 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
             if self.tokenizer.consume("(") {
                 let node = match self.tokenizer.consume_funccall() {
                     Some(s) => {
-                        let node = AbstractSyntaxTreeNode::func(s, self.stmt()?);
+                        let node = if self.tokenizer.at_eof() || self.tokenizer.consume(";") {
+                            AbstractSyntaxTreeNode::func_no_arg(s)
+                        } else {
+                            AbstractSyntaxTreeNode::func(s, self.stmt()?)
+                        };
                         Ok(node)
                     },
                     None => {

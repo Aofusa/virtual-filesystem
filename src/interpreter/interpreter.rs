@@ -102,6 +102,7 @@ mod tests {
         assert_eq!(x.interpret(": return 100;"), Ok(Some("100".to_string())));
         assert_eq!(x.interpret(": $a = 100; return $a / 10"), Ok(Some("10".to_string())));
         assert_eq!(x.interpret(": $a = abs; $b = 'drf'; $c = \"123\""), Ok(Some("123".to_string())));
+        assert_eq!(x.interpret(":"), Ok(Some("".to_string())));
     }
 }
 
