@@ -259,7 +259,9 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
 
                 // 文字列を変数名に変換しイテレータを進める
                 let s = p.to_string() + iter.as_str();
-                let string = s.split_whitespace().next().ok_or(InterpreterError::InvalidSource)?;
+                let exclusion = ";";  // 関数名に使用できないリスト
+                let san = s.split_whitespace().next().ok_or(InterpreterError::InvalidSource)?;
+                let (string, _right) = split_specific(san, exclusion);
                 for _ in 0..string.len()-1 { iter.next(); }
                 self.logger.print(&format!("funccall token: {}", string));
 
@@ -340,8 +342,20 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
                 }
             }
 
-            self.error_at(&p.to_string(), "トークナイズできません");
-            return Err(InterpreterError::Untokenized);
+            // 残りも文字列として処理する
+            {
+                // 文字列を変数名に変換しイテレータを進める
+                let s = p.to_string() + iter.as_str();
+                let string = s.split_whitespace().next().ok_or(InterpreterError::InvalidSource)?;
+                for _ in 0..string.len()-1 { iter.next(); }
+                self.logger.print(&format!("string token: {}", string));
+
+                let c = cur.clone();
+                cur = c.borrow_mut().create(TokenKind::STRING(string.to_string()));
+            }
+
+            // self.error_at(&p.to_string(), "トークナイズできません");
+            // return Err(InterpreterError::Untokenized);
         };
 
         let _eof = cur.borrow_mut().create(TokenKind::EOF);

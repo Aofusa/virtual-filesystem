@@ -105,14 +105,34 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         self.logger.print("func");
         match self.tokenizer.consume_funccall() {
             Some(s) => {
-                let node = if self.tokenizer.at_eof() || self.tokenizer.consume(";") {
+                self.logger.print("consume funccall ok");
+                let node = if self.tokenizer.at_eof() {
+                    self.logger.print("at eof. return func_no_arg");
                     AbstractSyntaxTreeNode::func_no_arg(s)
+                } else if self.tokenizer.consume(";") {
+                    self.logger.print("consume ;");
+                    if self.tokenizer.at_eof() {
+                        self.logger.print("at eof. return stmt");
+                        self.stmt()?
+                    } else {
+                        let next = self.tokenizer.consume_any();
+                        self.logger.print(&format!("consume any to funcall {}", next));
+                        if self.tokenizer.at_eof() {
+                            self.logger.print("at eof. return func_no_arg");
+                            AbstractSyntaxTreeNode::func_no_arg(next)
+                        } else {
+                            self.logger.print("funccall with arg");
+                            AbstractSyntaxTreeNode::func(next, self.stmt()?)
+                        }
+                    }
                 } else {
+                    self.logger.print("funccall with arg");
                     AbstractSyntaxTreeNode::func(s, self.stmt()?)
                 };
                 Ok(node)
             },
             None => {
+                self.logger.print("consume funccall ng");
                 self.stmt()
             }
         }
@@ -122,19 +142,16 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         self.logger.print("stmt");
         let node = if self.tokenizer.consume_return() {
             AbstractSyntaxTreeNode::return_node(self.expr()?)
-        } else {
-            match self.tokenizer.consume_funccall() {
-                Some(s) => {
-                    if self.tokenizer.at_eof() || self.tokenizer.consume(";") {
-                        AbstractSyntaxTreeNode::func_no_arg(s)
-                    } else {
-                        AbstractSyntaxTreeNode::func(s, self.stmt()?)
-                    }
-                },
-                None => {
-                    self.expr()?
-                }
+        } else if self.tokenizer.consume(";") {
+            loop { if !self.tokenizer.consume(";") { break } }
+            let s = self.tokenizer.consume_any();
+            if self.tokenizer.at_eof() {
+                AbstractSyntaxTreeNode::func_no_arg(s)
+            } else {
+                AbstractSyntaxTreeNode::func(s, self.stmt()?)
             }
+        } else {
+            self.expr()?
         };
         loop { if !self.tokenizer.consume(";") { break } }
         Ok(node)
@@ -232,19 +249,7 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
         if self.tokenizer.consume("$") {
             // プログラムの呼び出し
             if self.tokenizer.consume("(") {
-                let node = match self.tokenizer.consume_funccall() {
-                    Some(s) => {
-                        let node = if self.tokenizer.at_eof() || self.tokenizer.consume(";") {
-                            AbstractSyntaxTreeNode::func_no_arg(s)
-                        } else {
-                            AbstractSyntaxTreeNode::func(s, self.stmt()?)
-                        };
-                        Ok(node)
-                    },
-                    None => {
-                        self.stmt()
-                    }
-                };
+                let node = self.func();
                 self.tokenizer.expect(")")?;
                 node
             } else {
