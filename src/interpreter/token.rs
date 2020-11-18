@@ -128,6 +128,7 @@ impl<T: LoggerRepository + Clone> Tokenizer<T> {
     pub fn consume_any(&mut self) -> String {
         let t = self.token.clone();
         let p = &t.borrow().0;
+        self.token = t.borrow().next();
         match p {
             TokenKind::NUM(x) => format!("{}", x),
             TokenKind::STRING(x) =>  x.to_string(),

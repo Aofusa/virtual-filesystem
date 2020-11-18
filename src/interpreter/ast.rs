@@ -245,34 +245,37 @@ impl<T: LoggerRepository + Clone> AstBuilder<T> {
                 self.tokenizer.expect(")")?;
                 node
             } else {
-                // もしかしたら文字列かもしれない
-                match self.tokenizer.consume_strings() {
-                    Some(s) => {
-                        if self.tokenizer.consume("\"") {
-                            let mut str = s.to_string();
-                            loop {
-                                if self.tokenizer.consume("\"") { break }
-                                str = str + &self.tokenizer.consume_any();
-                            }
+                // " から始まるなら文字列
+                if self.tokenizer.consume("\"") {
+                    // " で囲われている範囲はどんなトークンでも文字列として扱う
+                    let mut s = "".to_string();
+                    loop {
+                        if self.tokenizer.consume("\"") { break }
+                        s = s + &self.tokenizer.consume_any();
+                    }
+                    let node = AbstractSyntaxTreeNode::string(s);
+                    Ok(node)
+                } else if self.tokenizer.consume("'") {
+                    // ' で囲われている範囲はどんなトークンでも文字列として扱う
+                    let mut s = "".to_string();
+                    loop {
+                        if self.tokenizer.consume("'") { break }
+                        s = s + &self.tokenizer.consume_any();
+                    }
+                    let node = AbstractSyntaxTreeNode::string(s);
+                    Ok(node)
+                } else {
+                    // もしかしたら文字列かもしれない
+                    match self.tokenizer.consume_strings() {
+                        Some(s) => {
                             let node = AbstractSyntaxTreeNode::string(s);
                             Ok(node)
-                        } else if self.tokenizer.consume("'") {
-                            let mut str = s.to_string();
-                            loop {
-                                if self.tokenizer.consume("'") { break }
-                                str = str + &self.tokenizer.consume_any();
-                            }
-                            let node = AbstractSyntaxTreeNode::string(s);
-                            Ok(node)
-                        } else {
-                            let node = AbstractSyntaxTreeNode::string(s);
-                            Ok(node)
+                        },
+                        None => {
+                            // そうでなければ数値のはず
+                            let x = self.tokenizer.expect_number()?;
+                            Ok(AbstractSyntaxTreeNode::num(x))
                         }
-                    },
-                    None => {
-                        // そうでなければ数値のはず
-                        let x = self.tokenizer.expect_number()?;
-                        Ok(AbstractSyntaxTreeNode::num(x))
                     }
                 }
             }
